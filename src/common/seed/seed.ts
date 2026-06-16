@@ -16,7 +16,7 @@ const prisma = new PrismaClient({
 // PERSONAL ID GENERATOR
 // -------------------------------------
 
-let personalIdCounter = 1000000000;
+let personalIdCounter = 100000000;
 
 function generatePersonalId() {
     return personalIdCounter++;
