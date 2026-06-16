@@ -5,10 +5,16 @@ import { JwtModule } from '@nestjs/jwt';
 import { DatabaseModule } from '../../database/database.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from '../../common/strategies/jwt.strategy';
+import { StudentModule } from '../student/student.module';
+import { EmailModule } from '../mail/email.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
     DatabaseModule,
+    StudentModule,
+    EmailModule,
+    NotificationModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

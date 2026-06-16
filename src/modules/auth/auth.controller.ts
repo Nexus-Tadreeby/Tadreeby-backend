@@ -1,30 +1,43 @@
-import { Body, Controller, Post, UseGuards, Headers, BadRequestException } from "@nestjs/common";
+import {
+    Body,
+    Controller,
+    Post,
+    UseGuards,
+    BadRequestException,
+    HttpCode,
+    HttpStatus,
+    Req,
+} from "@nestjs/common";
+
+import express from "express";
+
 import { AuthService } from "./auth.service";
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
-import {  studentRegisterSchema,type studentRegisterSchemaDto} from "./validation/student.register.validation.schema";
+
+import { studentRegisterSchema, type studentRegisterSchemaDto } from "../student/validation/student.register.validation.schema";
 import { loginSchema, type LoginSchemaDto } from "./validation/login.validation.schema";
 import { logoutSchema, type LogoutSchemaDto } from "./validation/logout.validation.schema";
-import { ZodValidationPipe } from "../../common/pipes/zod.pipe";
 import { refreshTokenSchema, type RefreshTokenSchemaDto } from "./validation/refresh.validation.schema";
-import { type authedUserType } from "../../common/types/unifiedType.types";
-import { AuthedUser } from "../../common/decorators/authedUser.decorator";
-import { LoginRequestDto, LoginResponseDto } from "./dto/login.dto";
-import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
-import { LogoutResponseDto } from "./dto/logout.dto";
-import { IsPublic } from '../../common/decorators/isPublic.decorator'
-import { RefreshTokenDto } from "./dto/refresh-token.dto";
-import { HttpCode, HttpStatus } from "@nestjs/common";
 
-// import { AuthedUser } from "../../common/decorators/authed-user.decorator";
-// import { authedUserType } from "../../common/types/authed-user.type";
+import { ZodValidationPipe } from "../../common/pipes/zod.pipe";
+import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { IsPublic } from "../../common/decorators/isPublic.decorator";
+
+import { AuthedUser } from "../../common/decorators/authedUser.decorator";
+import { type authedUserType } from "../../common/types/unifiedType.types";
+
+import { LoginRequestDto, LoginResponseDto } from "./dto/login.dto";
+import { LogoutResponseDto } from "./dto/logout.dto";
+import { RefreshTokenDto } from "./dto/refresh-token.dto";
 
 @ApiTags("Auth")
 @Controller("auth")
 export class AuthController {
-    constructor(private authService: AuthService) { }
+    constructor(private readonly authService: AuthService) { }
 
-    //! auth/register/student
-
+    // -------------------------
+    // REGISTER STUDENT
+    // -------------------------
     @IsPublic()
     @Post("register/student")
     @ApiOperation({ summary: "Student registration" })
@@ -32,31 +45,36 @@ export class AuthController {
     register(
         @Body(new ZodValidationPipe(studentRegisterSchema))
         dto: studentRegisterSchemaDto,
+
+        @Req() req: express.Request,
     ) {
-        return this.authService.registerStudent(dto);
+        return this.authService.registerStudent(dto, req);
     }
 
-
-    //! auth/login 
-
+    // -------------------------
+    // LOGIN
+    // -------------------------
     @IsPublic()
     @Post("login")
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: "Login" })
     @ApiBody({ type: LoginRequestDto })
-    @ApiResponse({ status: 200 , type : LoginResponseDto })
+    @ApiResponse({ status: 200, type: LoginResponseDto })
     login(
         @Body(new ZodValidationPipe(loginSchema))
         dto: LoginSchemaDto,
+
+        @Req() req: express.Request,
     ) {
-        return this.authService.login(dto);
+        return this.authService.login(dto, req);
     }
 
-    //! auth/refresh 
-
-    // @IsPublic()
+    // -------------------------
+    // REFRESH TOKEN
+    // -------------------------
+    @IsPublic()
     @Post("refresh")
-    @ApiOperation({ summary: "Refresh tokens" })
+    @ApiOperation({ summary: "Refresh tokens (session rotation)" })
     @ApiBody({ type: RefreshTokenDto })
     @ApiResponse({ status: 200 })
     refresh(
@@ -66,53 +84,18 @@ export class AuthController {
         return this.authService.refresh(dto);
     }
 
-    //! auth/logout 
-
-
+    // -------------------------
+    // LOGOUT
+    // -------------------------
     @UseGuards(JwtAuthGuard)
     @Post("logout")
-    @ApiOperation({ summary: 'Logout (invalidate refresh token)' })
+    @ApiOperation({ summary: "Logout (invalidate session)" })
     @ApiResponse({ status: 200, type: LogoutResponseDto })
     logout(
         @AuthedUser() user: authedUserType,
         @Body(new ZodValidationPipe(logoutSchema))
-       
         dto: LogoutSchemaDto,
     ) {
-        // return this.authService.logout(user.id);
         return this.authService.logout(dto);
     }
-
-
-
-    // @UseGuards(JwtAuthGuard)
-    // @Post("logout")
-    // @ApiOperation({ summary: 'Logout (invalidate refresh token)' })
-    // @ApiResponse({ status: 200, type: LogoutResponseDto })
-    // logout(
-    //     @AuthedUser() user: authedUserType,
-    //     @Body() body: unknown,
-    //     @Headers('x-refresh-token') refreshHeader?: string,
-    // ) {
-    //     const tokenFromBody = (body as any)?.refreshToken;
-    //     const refreshToken = tokenFromBody ?? refreshHeader;
-
-    //     if (!refreshToken) {
-    //         throw new BadRequestException({
-    //             message: 'Validation failed',
-    //             errors: {
-    //                 formErrors: ['refreshToken is required in body or x-refresh-token header'],
-    //                 fieldErrors: {},
-    //             },
-    //         });
-    //     }
-
-    //     const parsed = logoutSchema.safeParse({ refreshToken });
-    //     if (!parsed.success) {
-    //         throw new BadRequestException({ message: 'Validation failed', errors: parsed.error.flatten() });
-    //     }
-
-    //     return this.authService.logout({ refreshToken });
-    // }
-
 }
