@@ -184,21 +184,21 @@ export class AuthService {
             },
         });
 
-        console.time("email");
+    //     console.time("email");
         
-        void this.emailService.sendMail(
-            user.email,
-            "New login has been detected",
-            emailLayout(`
-        <h2>New login has been detected</h2>
-        <p><b>User ID:</b> ${user.id}</p>
-        <p><b>IP:</b> ${req.ip}</p>
-        <p><b>Device:</b> ${req.headers["user-agent"]}</p>
-        <p><b>Time:</b> ${new Date().toISOString()}</p>
-    `),
-        );
+    //     void this.emailService.sendMail(
+    //         user.email,
+    //         "New login has been detected",
+    //         emailLayout(`
+    //     <h2>New login has been detected</h2>
+    //     <p><b>User ID:</b> ${user.id}</p>
+    //     <p><b>IP:</b> ${req.ip}</p>
+    //     <p><b>Device:</b> ${req.headers["user-agent"]}</p>
+    //     <p><b>Time:</b> ${new Date().toISOString()}</p>
+    // `),
+    //     );
 
-        console.timeEnd("email");
+    //     console.timeEnd("email");
 
         const accessToken = this.jwt.sign(
             {
@@ -211,25 +211,25 @@ export class AuthService {
 
 
 
-        // if (activeSessions.length > 0 && !knownDevice) {
-        //     await this.emailService.sendMail(
-        //         user.email,
-        //         "Security Alert: New Device Login",
-        //         `
-        //     <h3>New login detected</h3>
-        //     <p><b>IP:</b> ${ipAddress}</p>
-        //     <p><b>Device:</b> ${userAgent}</p>
-        //     <p>If this wasn't you, reset your password immediately.</p>
-        //     `,
-        //     );
+        if (activeSessions.length > 0 && !knownDevice) {
+            await this.emailService.sendMail(
+                user.email,
+                "Security Alert: New Device Login",
+                `
+            <h3>New login detected</h3>
+            <p><b>IP:</b> ${ipAddress}</p>
+            <p><b>Device:</b> ${userAgent}</p>
+            <p>If this wasn't you, reset your password immediately.</p>
+            `,
+            );
 
-        //     await this.notificationService.createNotification(
-        //         user.id,
-        //         "New device login detected",
-        //         "A login was detected from an unrecognized device.",
-        //         "SYSTEM",
-        //     );
-        // }
+            await this.notificationService.createNotification(
+                user.id,
+                "New device login detected",
+                "A login was detected from an unrecognized device.",
+                "SYSTEM",
+            );
+        }
 
         return {
             accessToken,
