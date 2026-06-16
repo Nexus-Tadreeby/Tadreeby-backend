@@ -101,7 +101,7 @@ model User {
   evaluations           Evaluation[]   @relation("UserEvaluations")
   trainerInternships    Internship[]   @relation("TrainerInternship")
   supervisorInternships Internship[]   @relation("SupervisorInternship")
-  refreshTokens         RefreshToken[]
+  sessions    Session[]
 
   university University? @relation(fields: [universityId], references: [id], onDelete: SetNull)
   company    Company?    @relation(fields: [companyId], references: [id], onDelete: SetNull)
@@ -112,21 +112,26 @@ model User {
   @@index([role, isActive])
 }
 
-// ! Refresh Token Model
-model RefreshToken {
-  id        Int       @id @default(autoincrement())
-  userId    Int
-  token     String    @unique @db.VarChar(255)
-  expiresAt DateTime  @map("expires_at") @db.Timestamp()
-  revokedAt DateTime? @map("revoked_at") @db.Timestamp()
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
+// ! Session Model
 
-  //! Relations
+model Session {
+  id               String    @id @default(cuid())
+  userId           Int
+  refreshTokenHash String
+  deviceInfo       String?
+  ipAddress        String?
+  userAgent        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  lastUsedAt       DateTime?
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId], map: "idx_tokens_user")
-  @@map("refresh_tokens")
+  @@index([userId])
+  @@index([userId, revokedAt])
+  @@map("sessions")
 }
 
 // ! University Model
@@ -179,6 +184,7 @@ model StudentProfile {
   // approvalStatus       String?
   approvalStatus       StudentApprovalStatus @default(PENDING)
   approvedAt           DateTime?
+  rejectionReason      String?
 
   internships     InternshipStudent[]
   attendance      Attendance[]
