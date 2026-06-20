@@ -8,6 +8,7 @@ import { JwtStrategy } from '../../common/strategies/jwt.strategy';
 import { StudentModule } from '../student/student.module';
 import { EmailModule } from '../mail/email.module';
 import { NotificationModule } from '../notification/notification.module';
+import { ForgetPasswordService } from './forget-password.service';
 
 @Module({
   imports: [
@@ -25,6 +26,6 @@ import { NotificationModule } from '../notification/notification.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, ForgetPasswordService],
 })
 export class AuthModule { }

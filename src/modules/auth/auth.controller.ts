@@ -92,6 +92,28 @@ export class AuthController {
         return this.authService.refresh(dto);
     }
 
+
+    @Post("forgot-password")
+    forgotPassword(
+        @Body() dto: ForgotPasswordDto,
+    ) {
+        return this.forgotPasswordService.forgotPassword(dto);
+    }
+
+    @Post("verify-reset-code")
+    verifyResetCode(
+        @Body() dto: VerifyResetCodeDto,
+    ) {
+        return this.forgotPasswordService.verifyResetCode(dto);
+    }
+
+    @Post("reset-password")
+    resetPassword(
+        @Body(new ZodValidationPipe(reset_password)) dto: ResetPasswordDto,
+    ) {
+        return this.forgotPasswordService.resetPassword(dto);
+    }
+
     @UseGuards(JwtAuthGuard)
     @Post("logout")
     @ApiOperation({ summary: "Logout (invalidate session)" })
