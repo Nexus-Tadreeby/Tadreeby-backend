@@ -1,6 +1,12 @@
 import z from 'zod';
 
-export const nameSchema = z.string().trim().min(2).max(100);
+export const nameSchema = z
+.string()
+.trim()
+.min(2, 'Name must be at least 2 characters')
+.max(25, 'Name must be at most 25 characters')
+.regex(/^[A-Za-z\s]+$/, 'Name must contain only letters and spaces')
+
 export const emailSchema = z
   .string()
   .trim()
