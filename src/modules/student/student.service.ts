@@ -49,6 +49,7 @@ export class StudentService {
           userId: user.id,
           universityId: dto.universityId,
           studentNumber: dto.studentNumber,
+          major : dto.major,
           verificationDocument: dto.verificationDocument,
           approvalStatus: StudentApprovalStatus.PENDING,
         },

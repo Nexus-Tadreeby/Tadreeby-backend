@@ -13,6 +13,7 @@ export const studentRegisterSchema = z.object({
     firstName: nameSchema,
     lastName: nameSchema,
     phone: phoneSchema,
+    major: z.string().min(1),
     universityId: z.number().int(),
     studentNumber: z.number().int(),
     verificationDocument: z.string().min(1),
