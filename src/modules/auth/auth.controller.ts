@@ -7,6 +7,9 @@ import {
     HttpCode,
     HttpStatus,
     Req,
+    Get,
+    Param,
+    Delete,
 } from "@nestjs/common";
 
 import express from "express";
@@ -29,15 +32,23 @@ import { type authedUserType } from "../../common/types/unifiedType.types";
 import { LoginRequestDto, LoginResponseDto } from "./dto/login.dto";
 import { LogoutResponseDto } from "./dto/logout.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
+import { VerifyResetCodeDto } from "./dto/verify-reset-password.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { ForgetPasswordService } from "./forget-password.service";
+import { reset_password } from "./validation/reset-password.validation";
 
 @ApiTags("Auth")
 @Controller("auth")
 export class AuthController {
-    constructor(private readonly authService: AuthService) { }
+    constructor(
+        private readonly authService: AuthService,
+                private readonly forgotPasswordService: ForgetPasswordService,
 
-    // -------------------------
-    // REGISTER STUDENT
-    // -------------------------
+    ) { }
+
+
+    
     @IsPublic()
     @Post("register/student")
     @ApiOperation({ summary: "Student registration" })
@@ -51,9 +62,9 @@ export class AuthController {
         return this.authService.registerStudent(dto, req);
     }
 
-    // -------------------------
-    // LOGIN
-    // -------------------------
+
+
+
     @IsPublic()
     @Post("login")
     @HttpCode(HttpStatus.OK)
@@ -69,9 +80,6 @@ export class AuthController {
         return this.authService.login(dto, req);
     }
 
-    // -------------------------
-    // REFRESH TOKEN
-    // -------------------------
     @IsPublic()
     @Post("refresh")
     @ApiOperation({ summary: "Refresh tokens (session rotation)" })
@@ -84,9 +92,6 @@ export class AuthController {
         return this.authService.refresh(dto);
     }
 
-    // -------------------------
-    // LOGOUT
-    // -------------------------
     @UseGuards(JwtAuthGuard)
     @Post("logout")
     @ApiOperation({ summary: "Logout (invalidate session)" })
@@ -97,5 +102,24 @@ export class AuthController {
         dto: LogoutSchemaDto,
     ) {
         return this.authService.logout(dto);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('sessions')
+    getSessions(@Req() req) {
+        return this.authService.getSessions(req.user.sub);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Delete('sessions/:id')
+    revokeSession(@Req() req, @Param('id') id: string) {
+        return this.authService.revokeSession(req.user.sub, id);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Delete('sessions/revoke-all')
+    revokeAll(@Req() req) {
+        console.log('HIT CONTROLLER');
+        return this.authService.revokeAllSessions(req.user.sub);
     }
 }

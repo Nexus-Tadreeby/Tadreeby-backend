@@ -15,12 +15,13 @@ import { LogoutDto } from "./dto/logout.dto";
 import { StudentService } from "../student/student.service";
 import { Request } from "express";
 import { verifyPassword } from "./utils/crypto.util";
-import { generateRefreshToken } from "./utils/refresh-token.util";
+import { generateRefreshToken, hashRefreshToken } from "./utils/refresh-token.util";
 
 import { EmailService } from "../mail/email.service";
 import { NotificationService } from "../notification/notification.service";
-import { emailLayout } from "../student/helpers/email-templates";
-
+// import { emailLayout } from "../student/helpers/email-templates";
+import { buildLoginAlertEmail, emailLayout, heading, paragraph, section } from '../student/helpers/email-templates';
+import { RegisterStudentDto } from "../student/dto/register-student.dto";
 @Injectable()
 export class AuthService {
     constructor(
@@ -34,7 +35,7 @@ export class AuthService {
 
     
     
-    async registerStudent(dto: StudentRegisterDto, req: Request) {
+    async registerStudent(dto: RegisterStudentDto, req: Request) {
         const student = await this.studentService.create(dto);
 
         const session = await this.createSession(student, req);
@@ -116,9 +117,8 @@ export class AuthService {
     //         { expiresIn: "15m" },
     //     );
 
-    //     // -------------------------
+
     //     // ALERT SYSTEM
-    //     // -------------------------
     //     if (existingSession && existingSession.deviceInfo !== userAgent) {
     //         await this.emailService.sendMail(
     //             user.email,
@@ -184,21 +184,22 @@ export class AuthService {
             },
         });
 
-    //     console.time("email");
-        
-    //     void this.emailService.sendMail(
-    //         user.email,
-    //         "New login has been detected",
-    //         emailLayout(`
-    //     <h2>New login has been detected</h2>
-    //     <p><b>User ID:</b> ${user.id}</p>
-    //     <p><b>IP:</b> ${req.ip}</p>
-    //     <p><b>Device:</b> ${req.headers["user-agent"]}</p>
-    //     <p><b>Time:</b> ${new Date().toISOString()}</p>
-    // `),
-    //     );
+        console.time("email");
 
-    //     console.timeEnd("email");
+
+
+
+
+
+        void this.emailService.sendMail(
+            user.email,
+            "🔐 Security Alert: New login detected",  
+            buildLoginAlertEmail(user, req),         
+        );
+
+
+
+        console.timeEnd("email");
 
         const accessToken = this.jwt.sign(
             {
@@ -211,25 +212,25 @@ export class AuthService {
 
 
 
-        if (activeSessions.length > 0 && !knownDevice) {
-            await this.emailService.sendMail(
-                user.email,
-                "Security Alert: New Device Login",
-                `
-            <h3>New login detected</h3>
-            <p><b>IP:</b> ${ipAddress}</p>
-            <p><b>Device:</b> ${userAgent}</p>
-            <p>If this wasn't you, reset your password immediately.</p>
-            `,
-            );
+        // if (activeSessions.length > 0 && !knownDevice) {
+        //     await this.emailService.sendMail(
+        //         user.email,
+        //         "Security Alert: New Device Login",
+        //         `
+        //     <h3>New login detected</h3>
+        //     <p><b>IP:</b> ${ipAddress}</p>
+        //     <p><b>Device:</b> ${userAgent}</p>
+        //     <p>If this wasn't you, reset your password immediately.</p>
+        //     `,
+        //     );
 
-            await this.notificationService.createNotification(
-                user.id,
-                "New device login detected",
-                "A login was detected from an unrecognized device.",
-                "SYSTEM",
-            );
-        }
+        //     await this.notificationService.createNotification(
+        //         user.id,
+        //         "New device login detected",
+        //         "A login was detected from an unrecognized device.",
+        //         "SYSTEM",
+        //     );
+        // }
 
         return {
             accessToken,
@@ -268,7 +269,8 @@ export class AuthService {
         }
 
         const newRefreshToken = generateRefreshToken();
-        const newHash = await argon2.hash(newRefreshToken);
+        // const newHash = await argon2.hash(newRefreshToken);
+        const newHash = hashRefreshToken(newRefreshToken)
 
         await this.prisma.session.update({
             where: { id: matchedSession.id },
@@ -297,9 +299,12 @@ export class AuthService {
 
 
     async logout(dto: LogoutDto) {
+        
         await this.prisma.session.updateMany({
             where: {
+                refreshTokenHash : dto.refreshToken ,
                 revokedAt: null,
+                // id: dto.refreshToken
             },
             data: {
                 revokedAt: new Date(),
@@ -311,4 +316,83 @@ export class AuthService {
             message: "Logged out successfully",
         };
     }
+
+
+
+    async getSessions(userId: number) {
+        return this.prisma.session.findMany({
+            where: {
+                userId,
+                revokedAt: null,
+                expiresAt: {
+                    gt: new Date(),
+                },
+            },
+            select: {
+                id: true,
+                deviceInfo: true,
+                ipAddress: true,
+                userAgent: true,
+                createdAt: true,
+                lastUsedAt: true,
+                expiresAt: true,
+            },
+            orderBy: {
+                lastUsedAt: 'desc',
+            },
+        });
+    }
+
+
+
+    async revokeSession(userId: number, sessionId: string) {
+        const session = await this.prisma.session.findFirst({
+            where: {
+                id: sessionId,
+                userId,
+                revokedAt: null,
+            },
+        });
+
+        if (!session) {
+            return {
+                success: false,
+                message: 'Session not found',
+            };
+        }
+
+        await this.prisma.session.update({
+            where: {
+                id: sessionId,
+            },
+            data: {
+                revokedAt: new Date(),
+            },
+        });
+
+        return {
+            success: true,
+            message: 'Session revoked successfully',
+        };
+    }
+
+
+    async revokeAllSessions(userId: number) {
+        const result = await this.prisma.session.updateMany({
+            where: {
+                userId,
+                revokedAt: null,
+            },
+            data: {
+                revokedAt: new Date(),
+            },
+        });
+
+        return {
+            success: true,
+            message: 'All sessions revoked successfully',
+            revokedCount: result.count,
+        };
+    }
+
 }
