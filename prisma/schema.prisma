@@ -105,6 +105,7 @@ model User {
 
   university University? @relation(fields: [universityId], references: [id], onDelete: SetNull)
   company    Company?    @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  passwordResetCodes PasswordResetCode[]
 
   @@index([isActive])
   // to enable role filter
@@ -132,6 +133,25 @@ model Session {
   @@index([userId])
   @@index([userId, revokedAt])
   @@map("sessions")
+}
+
+
+// ! code Model
+model PasswordResetCode {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  code      String
+  jti       String?   @unique
+  usedAt    DateTime?
+  expiresAt DateTime
+  used      Boolean   @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+
+  @@index([userId])
+  @@index([code])
 }
 
 // ! University Model
