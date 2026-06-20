@@ -20,6 +20,9 @@ export class RegisterStudentDto {
     email: string;
 
     @ApiProperty()
+    major: string;
+
+    @ApiProperty()
     password: string;
 
     @ApiProperty()
