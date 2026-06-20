@@ -5,7 +5,7 @@ import { DatabaseService } from '../../../database/database.service';
 import { EmailService } from '../../mail/email.service';
 import { NotificationService } from '../../notification/notification.service';
 import { NotificationType } from '@prisma/client';
-import { button, emailLayout } from '../helpers/email-templates';
+import { buildApplicationApprovedEmail, buildApplicationReceivedEmail, buildApplicationRejectedEmail, button, emailLayout } from '../helpers/email-templates';
 
 
 @Injectable()
@@ -44,22 +44,39 @@ export class StudentEventsListener {
 
         const profileUrl = `${this.frontendUrl()}/profile`;
 
-        const html = emailLayout(`
-            <h2>Application Received</h2>
-            <p>Hello ${user.firstName},</p>
-            <p>Your application has been received and is now <strong>pending review</strong>.</p>
-            ${button(profileUrl, 'View Profile')}
-        `);
-
         try {
+            // 1. Build the modern email HTML
+            const modernHtml = buildApplicationReceivedEmail(
+                user,          // { firstName, email }
+                profileUrl     // The profile URL
+            );
+
+            // 2. Send it with a better subject line
             await this.emailService.sendMail(
                 user.email,
-                'Application received',
-                html,
+                '📬 Application received – pending review', // Catchy subject
+                modernHtml,
             );
         } catch (err) {
             this.logger.error('Failed sending registration email', err as any);
         }
+
+        // const html = emailLayout(`
+        //     <h2>Application Received</h2>
+        //     <p>Hello ${user.firstName},</p>
+        //     <p>Your application has been received and is now <strong>pending review</strong>.</p>
+        //     ${button(profileUrl, 'View Profile')}
+        // `);
+
+        // try {
+        //     await this.emailService.sendMail(
+        //         user.email,
+        //         'Application received',
+        //         html,
+        //     );
+        // } catch (err) {
+        //     this.logger.error('Failed sending registration email', err as any);
+        // }
 
         // Notify university admins
         const admins = await this.prisma.user.findMany({
@@ -124,22 +141,42 @@ export class StudentEventsListener {
             }
         }
 
-        const html = emailLayout(`
-            <h2 style="color:green;">Application Approved</h2>
-            <p>Hi ${user.firstName},</p>
-            <p>Your application has been <strong>approved</strong>${approverText}.</p>
-            ${button(loginUrl, 'Login')}
-        `);
 
         try {
+            // 1. Build the modern email HTML
+            const modernHtml = buildApplicationApprovedEmail(
+                user,                // { firstName, email }
+                approverText,        // e.g., " by John Doe" or ""
+                loginUrl             // The login URL
+            );
+
+            // 2. Send it with a better subject line
             await this.emailService.sendMail(
                 user.email,
-                'Application approved',
-                html,
+                'Application status update – Your application has been approved!', // Catchy subject
+                modernHtml,
             );
         } catch (err) {
             this.logger.error('Failed sending approval email', err as any);
         }
+
+        
+        // const html = emailLayout(`
+        //     <h2 style="color:green;">Application Approved</h2>
+        //     <p>Hi ${user.firstName},</p>
+        //     <p>Your application has been <strong>approved</strong>${approverText}.</p>
+        //     ${button(loginUrl, 'Login')}
+        // `);
+
+        // try {
+        //     void this.emailService.sendMail(
+        //         user.email,
+        //         'Application approved',
+        //         html,
+        //     );
+        // } catch (err) {
+        //     this.logger.error('Failed sending approval email', err as any);
+        // }
 
         // Notify admins
         try {
@@ -203,23 +240,43 @@ export class StudentEventsListener {
             }
         }
 
-        const html = emailLayout(`
-            <h2 style="color:red;">Application Rejected</h2>
-            <p>Hi ${user.firstName},</p>
-            <p>Your application was not approved${approverText}.</p>
-            <p><strong>Reason:</strong> ${reason || 'Not specified'}</p>
-            ${button(profileUrl, 'Update / Re-upload Document', '#EF4444')}
-        `);
 
         try {
+            // 1. Build the modern email HTML
+            const modernHtml = buildApplicationRejectedEmail(
+                user,           // { firstName, email }
+                approverText,   // e.g., " by John Doe" or ""
+                reason,         // The rejection reason (string or null)
+                profileUrl      // The URL to update/re-upload
+            );
+
+            // 2. Send it with a clearer subject line
             await this.emailService.sendMail(
                 user.email,
-                'Application rejected',
-                html,
+                'Application status update – Please review', // Empathetic but clear subject
+                modernHtml,
             );
         } catch (err) {
             this.logger.error('Failed sending rejection email', err as any);
         }
+        
+        // const html = emailLayout(`
+        //     <h2 style="color:red;">Application Rejected</h2>
+        //     <p>Hi ${user.firstName},</p>
+        //     <p>Your application was not approved${approverText}.</p>
+        //     <p><strong>Reason:</strong> ${reason || 'Not specified'}</p>
+        //     ${button(profileUrl, 'Update / Re-upload Document', '#EF4444')}
+        // `);
+
+        // try {
+        //     await this.emailService.sendMail(
+        //         user.email,
+        //         'Application rejected',
+        //         html,
+        //     );
+        // } catch (err) {
+        //     this.logger.error('Failed sending rejection email', err as any);
+        // }
     }
 
     // ---------------- DOCUMENT REUPLOAD ----------------
