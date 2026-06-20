@@ -11,3 +11,12 @@
 
 DATABASE_URL="postgresql://postgres:123456@localhost:5432/tadreeby"
 JWT_SECRET="3517f9ba902d071ec4db578f53deaa999b3caea55d7bfd83b914d61c6aff3ae3"
+
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+
+SMTP_USER=shahdabusharife@gmail.com
+SMTP_PASS=jyggnuwkfpopmgco
+
+SMTP_FROM="Tadreeby <shahdabusharife@gmail.com>"
