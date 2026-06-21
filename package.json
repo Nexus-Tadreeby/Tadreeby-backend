@@ -8,6 +8,8 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "prebuild": "npm run prebuild:check",
+    "prebuild:check": "node -e \"const fs=require('fs');['nest-cli.json','package.json','tsconfig.json','tsconfig.build.json'].forEach(f=>{try{JSON.parse(fs.readFileSync(f,'utf8'));console.log(f,'OK')}catch(e){console.error(f,e.message);process.exit(1)}})\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
@@ -50,6 +52,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@emnapi/core": "^1.11.1",
+    "@emnapi/runtime": "^1.11.1",
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
     "@nestjs/cli": "^11.0.0",
