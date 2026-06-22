@@ -1,0 +1,15 @@
+import { randomBytes, createHash, timingSafeEqual } from 'crypto';
+
+export function generateRefreshToken(): string {
+  return randomBytes(48).toString('base64url');
+}
+
+export function hashRefreshToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+export function safeEqual(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+  return aBuf.length === bBuf.length && timingSafeEqual(aBuf, bBuf);
+}

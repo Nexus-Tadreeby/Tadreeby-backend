@@ -23,6 +23,12 @@ enum UserRole {
   STUDENT
 }
 
+enum StudentApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum ApplicationStatus {
   PENDING
   ACCEPTED
@@ -73,7 +79,10 @@ model User {
   id                Int                          @id @default(autoincrement())
   email             String                       @unique
   password          String
-  fullName          String
+  // fullName          String
+  firstName         String
+  lastName          String
+  personalID        Int                          @unique
   phone             String?
   profileImage      String?
   role              UserRole
@@ -92,27 +101,57 @@ model User {
   evaluations           Evaluation[]   @relation("UserEvaluations")
   trainerInternships    Internship[]   @relation("TrainerInternship")
   supervisorInternships Internship[]   @relation("SupervisorInternship")
-  refreshTokens         RefreshToken[]
+  sessions    Session[]
 
   university University? @relation(fields: [universityId], references: [id], onDelete: SetNull)
   company    Company?    @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  passwordResetCodes PasswordResetCode[]
+
+  @@index([isActive])
+  // to enable role filter
+  @@index([role])
+  @@index([role, isActive])
 }
 
-// ! Refresh Token Model
-model RefreshToken {
-  id        Int       @id @default(autoincrement())
-  userId    Int
-  token     String    @unique @db.VarChar(255)
-  expiresAt DateTime  @map("expires_at") @db.Timestamp()
-  revokedAt DateTime? @map("revoked_at") @db.Timestamp()
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
+// ! Session Model
 
-  //! Relations
+model Session {
+  id               String    @id @default(cuid())
+  userId           Int
+  refreshTokenHash String
+  deviceInfo       String?
+  ipAddress        String?
+  userAgent        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  lastUsedAt       DateTime?
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId], map: "idx_tokens_user")
-  @@map("refresh_tokens")
+  @@index([userId])
+  @@index([userId, revokedAt])
+  @@map("sessions")
+}
+
+
+// ! code Model
+model PasswordResetCode {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  code      String
+  jti       String?   @unique
+  usedAt    DateTime?
+  expiresAt DateTime
+  used      Boolean   @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+
+  @@index([userId])
+  @@index([code])
 }
 
 // ! University Model
@@ -121,6 +160,7 @@ model University {
   id          Int     @id @default(autoincrement())
   name        String
   email       String?
+  shortCode   String  @unique
   phone       String?
   location    String?
   description String?
@@ -138,6 +178,7 @@ model Company {
   id          Int     @id @default(autoincrement())
   name        String
   email       String?
+  shortCode   String  @unique
   phone       String?
   location    String?
   description String?
@@ -152,23 +193,34 @@ model Company {
 // ! Student Profile Model
 
 model StudentProfile {
-  userId               Int       @id
-  universityId         Int?
+  userId               Int                   @id
+  universityId         Int
+  studentNumber        Int
   major                String?
   academicYear         Int?
   gpa                  Float?
   cvUrl                String?
-  verificationDocument String?
-  approvalStatus       String?
+  verificationDocument String
+  // approvalStatus       String?
+  approvalStatus       StudentApprovalStatus @default(PENDING)
   approvedAt           DateTime?
+  rejectionReason      String?
 
   internships     InternshipStudent[]
   attendance      Attendance[]
   evaluations     Evaluation[]
   taskSubmissions TaskSubmission[]
 
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  university University? @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+
+  @@unique([studentNumber, universityId])
+  @@index([studentNumber])
+  // approval filtering
+  @@index([approvalStatus])
+  // university-based queries
+  @@index([universityId])
+  @@index([universityId, approvalStatus])
 }
 
 // ! University Supervisor Profile Model
@@ -238,6 +290,11 @@ model Internship {
   supervisor  User?               @relation("SupervisorInternship", fields: [supervisorId], references: [id], onDelete: SetNull)
   // opportunityId String @unique
   // opportunity   TrainingOpportunity @relation("OppToInternship", fields: [opportunityId], references: [id])
+
+  @@index([companyId])
+  @@index([universityId])
+  @@index([status])
+  @@index([universityId, status])
 }
 
 // ! Internship Student Model
@@ -251,6 +308,8 @@ model InternshipStudent {
   student    StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
 
   @@unique([internshipId, studentId])
+  @@index([studentId])
+  @@index([internshipId])
 }
 
 // ! Task Model
@@ -265,6 +324,9 @@ model Task {
 
   submissions TaskSubmission[]
   internship  Internship       @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+
+  @@index([internshipId])
+  @@index([status])
 }
 
 // ! Task Submission Model
@@ -282,6 +344,10 @@ model TaskSubmission {
 
   student StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
   task    Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([studentId])
+  @@index([taskId, studentId])
 }
 
 // ! Attendance Model
@@ -295,6 +361,10 @@ model Attendance {
 
   internship Internship     @relation(fields: [internshipId], references: [id], onDelete: Cascade)
   student    StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+
+  @@index([internshipId])
+  @@index([studentId])
+  @@index([internshipId, date])
 }
 
 // ! Evaluation Model
@@ -312,6 +382,10 @@ model Evaluation {
   evaluator  User           @relation("UserEvaluations", fields: [evaluatorId], references: [id], onDelete: Cascade)
   internship Internship     @relation(fields: [internshipId], references: [id], onDelete: Cascade)
   student    StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([internshipId])
+  @@index([evaluatorId])
 }
 
 // ! AI Evaluation Model
@@ -338,6 +412,10 @@ model Message {
 
   sender   User @relation("sent", fields: [senderId], references: [id], onDelete: Cascade)
   receiver User @relation("recv", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([senderId, receiverId])
 }
 
 // ! Notification Model
@@ -352,4 +430,7 @@ model Notification {
   type      NotificationType
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
 }
