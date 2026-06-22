@@ -25,6 +25,7 @@
     "seed": "node dist/src/common/seed.js"
   },
   "dependencies": {
+    "@emnapi/wasi-threads": "^1.2.2",
     "@neondatabase/serverless": "^1.1.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
