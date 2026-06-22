@@ -16,6 +16,7 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
+  console.log("DB URL:", process.env.DATABASE_URL);
 
 
   const port = process.env.PORT || 6060;
