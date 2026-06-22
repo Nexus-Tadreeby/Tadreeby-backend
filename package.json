@@ -8,7 +8,7 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "prebuild": "npm run prebuild:check",
+    "prebuild": "npx prisma generate && npm run prebuild:check",
     "prebuild:check": "node -e \"const fs=require('fs');['nest-cli.json','package.json','tsconfig.json','tsconfig.build.json'].forEach(f=>{try{JSON.parse(fs.readFileSync(f,'utf8'));console.log(f,'OK')}catch(e){console.error(f,e.message);process.exit(1)}})\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
