@@ -15,7 +15,7 @@ import {
 import express from "express";
 
 import { AuthService } from "./auth.service";
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 
 import { studentRegisterSchema, type studentRegisterSchemaDto } from "../student/validation/student.register.validation.schema";
 import { loginSchema, type LoginSchemaDto } from "./validation/login.validation.schema";
@@ -37,6 +37,7 @@ import { VerifyResetCodeDto } from "./dto/verify-reset-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { ForgetPasswordService } from "./forget-password.service";
 import { reset_password } from "./validation/reset-password.validation";
+
 
 @ApiTags("Auth")
 @Controller("auth")
@@ -93,6 +94,7 @@ export class AuthController {
     }
 
 
+    @IsPublic()
     @Post("forgot-password")
     forgotPassword(
         @Body() dto: ForgotPasswordDto,
@@ -100,6 +102,7 @@ export class AuthController {
         return this.forgotPasswordService.forgotPassword(dto);
     }
 
+    @IsPublic()
     @Post("verify-reset-code")
     verifyResetCode(
         @Body() dto: VerifyResetCodeDto,
@@ -107,6 +110,7 @@ export class AuthController {
         return this.forgotPasswordService.verifyResetCode(dto);
     }
 
+    @IsPublic()
     @Post("reset-password")
     resetPassword(
         @Body(new ZodValidationPipe(reset_password)) dto: ResetPasswordDto,
@@ -114,6 +118,7 @@ export class AuthController {
         return this.forgotPasswordService.resetPassword(dto);
     }
 
+    @ApiBearerAuth()
     @UseGuards(JwtAuthGuard)
     @Post("logout")
     @ApiOperation({ summary: "Logout (invalidate session)" })
@@ -126,12 +131,16 @@ export class AuthController {
         return this.authService.logout(dto);
     }
 
+
+    @ApiBearerAuth()
     @UseGuards(JwtAuthGuard)
     @Get('sessions')
     getSessions(@Req() req) {
         return this.authService.getSessions(req.user.sub);
     }
 
+
+    @ApiBearerAuth()
     @UseGuards(JwtAuthGuard)
     @Delete('sessions/revoke-all')
     revokeAll(@Req() req) {
@@ -139,7 +148,7 @@ export class AuthController {
         return this.authService.revokeAllSessions(req.user.sub);
     }
 
-    
+    @ApiBearerAuth()
     @UseGuards(JwtAuthGuard)
     @Delete('sessions/:id')
     revokeSession(@Req() req, @Param('id') id: string) {
