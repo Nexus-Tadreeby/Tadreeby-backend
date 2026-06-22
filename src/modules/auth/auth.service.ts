@@ -318,31 +318,47 @@ export class AuthService {
     }
 
 
-
     async getSessions(userId: number) {
-        return this.prisma.session.findMany({
-            where: {
-                userId,
-                revokedAt: null,
-                expiresAt: {
-                    gt: new Date(),
+        const [sessions, count] = await this.prisma.$transaction([
+            this.prisma.session.findMany({
+                where: {
+                    userId,
+                    revokedAt: null,
+                    expiresAt: {
+                        gt: new Date(),
+                    },
                 },
-            },
-            select: {
-                id: true,
-                deviceInfo: true,
-                ipAddress: true,
-                userAgent: true,
-                createdAt: true,
-                lastUsedAt: true,
-                expiresAt: true,
-            },
-            orderBy: {
-                lastUsedAt: 'desc',
-            },
-        });
-    }
+                select: {
+                    id: true,
+                    deviceInfo: true,
+                    ipAddress: true,
+                    userAgent: true,
+                    createdAt: true,
+                    lastUsedAt: true,
+                    expiresAt: true,
+                },
+                orderBy: {
+                    lastUsedAt: 'desc',
+                },
+            }),
 
+            this.prisma.session.count({
+                where: {
+                    userId,
+                    revokedAt: null,
+                    expiresAt: {
+                        gt: new Date(),
+                    },
+                },
+            }),
+        ]);
+
+        return {
+            count,
+            sessions,
+        };
+    }
+    
 
 
     async revokeSession(userId: number, sessionId: string) {

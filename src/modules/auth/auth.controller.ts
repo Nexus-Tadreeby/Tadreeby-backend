@@ -133,15 +133,17 @@ export class AuthController {
     }
 
     @UseGuards(JwtAuthGuard)
-    @Delete('sessions/:id')
-    revokeSession(@Req() req, @Param('id') id: string) {
-        return this.authService.revokeSession(req.user.sub, id);
-    }
-
-    @UseGuards(JwtAuthGuard)
     @Delete('sessions/revoke-all')
     revokeAll(@Req() req) {
         console.log('HIT CONTROLLER');
         return this.authService.revokeAllSessions(req.user.sub);
     }
+
+    
+    @UseGuards(JwtAuthGuard)
+    @Delete('sessions/:id')
+    revokeSession(@Req() req, @Param('id') id: string) {
+        return this.authService.revokeSession(req.user.sub, id);
+    }
+
 }
