@@ -23,6 +23,7 @@ export class StudentService {
     const phoneNumber = dto.phone.trim()
 
     await this.ensureEmailNotUsed(dto.email)
+    await this.ensurePersonalIdNotUsed(dto.personalID);
 
     const hashedPassword = await hashPassword(dto.password);
 
@@ -99,6 +100,16 @@ export class StudentService {
 
   }
 
+
+  private async ensurePersonalIdNotUsed(personalID: number ): Promise<void> {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { personalID },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Personal ID already exists');
+    }
+  }
 
   normalizeEmail(email: string) {
     return email.trim().toLowerCase();
