@@ -12,7 +12,7 @@ export const emailSchema = z
   .trim()
   .email()
   .transform((e) => e.toLowerCase());
-export const phoneSchema = z.string().trim().min(6).max(30);
+export const phoneSchema = z.string().trim().regex(/^\d{10}$/, 'Phone number must be exactly 10 digits');
 export const passwordSchema = z
   .string()
   .min(8, 'Password must be at least 8 characters long')
