@@ -7,9 +7,24 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
 
+
+  app.enableCors({
+    origin: [
+      'http://localhost:4173',
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'https://tadreeby.vercel.app',
+      
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    credentials: true,
+    optionsSuccessStatus: 200,
+  });
+
   const config = new DocumentBuilder()
     .setTitle('Tadreeby API')
-    .setDescription('Auth system API')
+    .setDescription('Tadreeby API Documentation')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
