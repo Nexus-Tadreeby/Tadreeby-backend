@@ -6,10 +6,12 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  app.setGlobalPrefix('api');
+
 
   const config = new DocumentBuilder()
     .setTitle('Tadreeby API')
-    .setDescription('Auth system API')
+    .setDescription('Tadreeby API Documentation')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
