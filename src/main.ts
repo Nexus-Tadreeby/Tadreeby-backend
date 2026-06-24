@@ -15,15 +15,23 @@ async function bootstrap() {
     credentials: true,
   });
 
+  const defaultAllowed = [
+    'http://localhost:4173',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://tadreeby.vercel.app',
+  ];
+
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim())
+    : defaultAllowed;
 
   app.enableCors({
-    origin: [
-      'http://localhost:4173',
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'https://tadreeby.vercel.app',
-      
-    ],
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
