@@ -19,4 +19,4 @@ export const reset_password = z.object({
 
 
 
-export type reset_passwordDto = z.infer<typeof reset_password>;
+export type ResetPasswordDto = z.infer<typeof reset_password>;

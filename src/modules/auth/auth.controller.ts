@@ -10,12 +10,17 @@ import {
     Get,
     Param,
     Delete,
+    UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+
 
 import express from "express";
 
 import { AuthService } from "./auth.service";
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 
 import { studentRegisterSchema, type studentRegisterSchemaDto } from "../student/validation/student.register.validation.schema";
 import { loginSchema, type LoginSchemaDto } from "./validation/login.validation.schema";
@@ -37,6 +42,8 @@ import { VerifyResetCodeDto } from "./dto/verify-reset-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { ForgetPasswordService } from "./forget-password.service";
 import { reset_password } from "./validation/reset-password.validation";
+import { FileValidationInterceptor } from "src/common/interceptors/file-validation.interceptor";
+import { multerConfig } from "src/common/config/multer.config";
 
 
 @ApiTags("Auth")
@@ -52,8 +59,41 @@ export class AuthController {
     
     @IsPublic()
     @Post("register/student")
-    @ApiOperation({ summary: "Student registration" })
-    @ApiResponse({ status: 201 })
+    @ApiOperation({ summary: 'Student registration with document upload' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                email: { type: 'string', example: 'student@university.edu' },
+                firstName: { type: 'string', example: 'Ahmed' },
+                lastName: { type: 'string', example: 'Mohammed' },
+                personalID: { type: 'string', example: '123456789' },
+                phone: { type: 'string', example: '0599123456' },
+                password: { type: 'string', example: 'password123' },
+                universityId: { type: 'number', example: 1 },
+                studentNumber: { type: 'string', example: '20231234' },
+                major: { type: 'string', example: 'Computer Science' },
+                verificationDocument: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Proof of university enrollment (PDF, JPG, PNG) - Maximum size 10 MB',
+                },
+            },
+        },
+    })
+    @ApiResponse({
+        status: 201,
+        description: 'Student registered successfully, awaiting approval'
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Data error or file size exceeds 10 MB limit'
+    })
+    @UseInterceptors(
+        FileInterceptor('verificationDocument', multerConfig),
+        FileValidationInterceptor,
+    )
     register(
         @Body(new ZodValidationPipe(studentRegisterSchema))
         dto: studentRegisterSchemaDto,

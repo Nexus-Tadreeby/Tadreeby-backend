@@ -6,6 +6,7 @@ import { StudentApprovalStatus, UserRole } from '@prisma/client';
 import { StudentRegisteredEvent } from './events/student-registered.event';
 import { hashPassword } from '../auth/utils/crypto.util';
 import { removeFields } from '../../common/utils/object.util';
+import { AuthUserResponse } from 'src/common/types/unifiedType.types';
 
 @Injectable()
 export class StudentService {
@@ -17,7 +18,7 @@ export class StudentService {
   ) { }
 
 
-  async create(dto: RegisterStudentDto) {
+  async create(dto: RegisterStudentDto): Promise<AuthUserResponse> {
 
     const email = this.normalizeEmail(dto.email)
     const phoneNumber = dto.phone.trim()

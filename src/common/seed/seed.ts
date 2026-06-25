@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { PrismaClient, UserRole } from "@prisma/client";
+import { PrismaClient, StudentApprovalStatus, UserRole } from "@prisma/client";
 import * as argon2 from "argon2";
 import { PrismaPg } from "@prisma/adapter-pg";
 
@@ -15,7 +15,6 @@ const prisma = new PrismaClient({
 // -------------------------------------
 // PERSONAL ID GENERATOR
 // -------------------------------------
-
 let personalIdCounter = 100000000;
 
 function generatePersonalId() {
@@ -60,6 +59,7 @@ async function main() {
     // UNIVERSITIES
     // -------------------------------------
 
+    console.log("📚 Creating universities...");
     const createdUniversities: any[] = [];
 
     for (const uni of universities) {
@@ -69,16 +69,19 @@ async function main() {
                 shortCode: uni.shortCode.toLowerCase(),
                 email: `admin.${uni.shortCode.toLowerCase()}@tadreeby.com`,
                 isActive: true,
+                // createdAt و updatedAt ستُضاف تلقائياً
             },
         });
 
         createdUniversities.push(university);
+        console.log(`  ✅ Created university: ${uni.name}`);
     }
 
     // -------------------------------------
     // COMPANIES
     // -------------------------------------
 
+    console.log("🏢 Creating companies...");
     const createdCompanies: any[] = [];
 
     for (const comp of companies) {
@@ -92,27 +95,32 @@ async function main() {
         });
 
         createdCompanies.push(company);
+        console.log(`  ✅ Created company: ${comp.name}`);
     }
 
     // -------------------------------------
     // SUPER ADMIN
     // -------------------------------------
 
+    console.log("👑 Creating Super Admin...");
     await prisma.user.create({
         data: {
             firstName: "Shahd",
-            lastName: "sharif",
+            lastName: "Sharif",
             email: buildEmail("shahd", "sharif", "admin"),
             password: defaultHashed,
             role: UserRole.SUPER_ADMIN,
             personalID: generatePersonalId(),
+            isActive: true,
         },
     });
+    console.log("  ✅ Created Super Admin");
 
     // -------------------------------------
     // UNIVERSITY ADMINS
     // -------------------------------------
 
+    console.log("🎓 Creating University Admins...");
     const uniAdmins = [
         { first: "Ahmad", last: "Khaled" },
         { first: "Sara", last: "Mahmoud" },
@@ -132,14 +140,17 @@ async function main() {
                 role: UserRole.UNIVERSITY_ADMIN,
                 universityId: uni.id,
                 personalID: generatePersonalId(),
+                isActive: true,
             },
         });
+        console.log(`  ✅ Created University Admin: ${admin.first} ${admin.last} for ${uni.name}`);
     }
 
     // -------------------------------------
     // UNIVERSITY SUPERVISORS
     // -------------------------------------
 
+    console.log("👨‍🏫 Creating University Supervisors...");
     const supervisors = [
         { first: "Nadine", last: "Saleh" },
         { first: "Mahmoud", last: "Faraj" },
@@ -159,22 +170,26 @@ async function main() {
                 role: UserRole.UNIVERSITY_SUPERVISOR,
                 universityId: uni.id,
                 personalID: generatePersonalId(),
+                isActive: true,
+
+                // ✅ Create supervisor profile directly
+                supervisorProfile: {
+                    create: {
+                        universityId: uni.id,
+                        department: "Computer Science",
+                    },
+                },
             },
         });
 
-        await prisma.universitySupervisorProfile.create({
-            data: {
-                userId: user.id,
-                universityId: uni.id,
-                department: "Computer Science",
-            },
-        });
+        console.log(`  ✅ Created University Supervisor: ${s.first} ${s.last} for ${uni.name}`);
     }
 
     // -------------------------------------
     // COMPANY ADMINS
     // -------------------------------------
 
+    console.log("💼 Creating Company Admins...");
     const companyAdmins = [
         { first: "Khalil", last: "Nasser" },
         { first: "Rana", last: "Odeh" },
@@ -193,14 +208,17 @@ async function main() {
                 role: UserRole.COMPANY_ADMIN,
                 companyId: comp.id,
                 personalID: generatePersonalId(),
+                isActive: true,
             },
         });
+        console.log(`  ✅ Created Company Admin: ${admin.first} ${admin.last} for ${comp.name}`);
     }
 
     // -------------------------------------
     // COMPANY TRAINERS
     // -------------------------------------
 
+    console.log("🧑‍💼 Creating Company Trainers...");
     const trainers = [
         { first: "Hani", last: "Abu Salem" },
         { first: "Dalia", last: "Khoury" },
@@ -219,23 +237,27 @@ async function main() {
                 role: UserRole.COMPANY_TRAINER,
                 companyId: comp.id,
                 personalID: generatePersonalId(),
+                isActive: true,
+
+                // ✅ Create trainer profile directly
+                trainerProfile: {
+                    create: {
+                        companyId: comp.id,
+                        position: "Senior Trainer",
+                        specialization: "Software Engineering",
+                    },
+                },
             },
         });
 
-        await prisma.companyTrainerProfile.create({
-            data: {
-                userId: user.id,
-                companyId: comp.id,
-                position: "Senior Trainer",
-                specialization: "Software Engineering",
-            },
-        });
+        console.log(`  ✅ Created Company Trainer: ${t.first} ${t.last} for ${comp.name}`);
     }
 
     // -------------------------------------
     // STUDENTS
     // -------------------------------------
 
+    console.log("👨‍🎓 Creating Students...");
     const studentNames = [
         { first: "Mohammad", last: "Ali" },
         { first: "Sara", last: "Abdullah" },
@@ -269,24 +291,37 @@ async function main() {
                 role: UserRole.STUDENT,
                 universityId: uni.id,
                 personalID: generatePersonalId(),
+                isActive: true,
 
+                // ✅ Create student profile directly
                 studentProfile: {
                     create: {
                         universityId: uni.id,
-                        studentNumber: 20260000 + i, 
+                        studentNumber: 20260000 + i,
                         major,
                         academicYear: 3,
                         gpa: 3.0 + (i % 5) * 0.2,
-                        approvalStatus: "APPROVED",
+                        approvalStatus: StudentApprovalStatus.APPROVED,
                         approvedAt: new Date(),
                         verificationDocument: "seed-file.pdf",
                     },
                 },
             },
         });
+
+        console.log(`  ✅ Created Student: ${s.first} ${s.last} (${email})`);
     }
 
-    console.log("✅ Seeding completed successfully");
+    console.log("✅ Seeding completed successfully!");
+    console.log("📊 Summary:");
+    console.log(`  - ${createdUniversities.length} Universities`);
+    console.log(`  - ${createdCompanies.length} Companies`);
+    console.log(`  - 1 Super Admin`);
+    console.log(`  - ${uniAdmins.length} University Admins`);
+    console.log(`  - ${supervisors.length} University Supervisors`);
+    console.log(`  - ${companyAdmins.length} Company Admins`);
+    console.log(`  - ${trainers.length} Company Trainers`);
+    console.log(`  - 10 Students`);
 }
 
 // -------------------------------------
@@ -295,7 +330,7 @@ async function main() {
 
 main()
     .catch((e) => {
-        console.error(e);
+        console.error("❌ Seeding failed:", e);
         process.exit(1);
     })
     .finally(async () => {
