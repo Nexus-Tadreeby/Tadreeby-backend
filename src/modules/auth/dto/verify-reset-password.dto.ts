@@ -11,7 +11,7 @@ export class VerifyResetCodeDto {
         example: "student@gmail.com",
     })
     @IsEmail()
-    email: string;
+    email!: string;
 
     @ApiProperty({
         example: "K8M2QX",
@@ -20,5 +20,5 @@ export class VerifyResetCodeDto {
     @IsString()
     @Length(6, 6)
     @Matches(/^[A-Z0-9]+$/)
-    code: string;
+    code!: string;
 }

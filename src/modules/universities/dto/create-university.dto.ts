@@ -6,10 +6,10 @@ import {
 
 export class CreateUniversityDto {
     @IsString()
-    name: string;
+    name!: string;
 
     @IsString()
-    shortCode: string;
+    shortCode!: string;
 
    
 }

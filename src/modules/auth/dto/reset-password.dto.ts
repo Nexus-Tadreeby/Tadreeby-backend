@@ -10,7 +10,7 @@ export class ResetPasswordDto {
             "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     })
     @IsString()
-    resetToken: string;
+    resetToken!: string;
 
     @ApiProperty({
         example: "NewPassword123!",
@@ -18,7 +18,7 @@ export class ResetPasswordDto {
     })
     @IsString()
     @MinLength(8)
-    newPassword: string;
+    newPassword!: string;
 
     @ApiProperty({
         example: "NewPassword123!",
@@ -26,5 +26,5 @@ export class ResetPasswordDto {
     })
     @IsString()
     @MinLength(8)
-    confirmPassword: string;
+    confirmPassword!: string;
 }

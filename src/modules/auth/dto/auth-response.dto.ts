@@ -3,30 +3,30 @@ import { UserRole } from '@prisma/client';
 
 class AuthUserDto {
     @ApiProperty({ example: 1 })
-    id: number;
+    id!: number;
 
     @ApiProperty({ example: 'test@mail.com' })
-    email: string;
+    email!: string;
 
     @ApiProperty({
         enum: UserRole,
         example: UserRole.STUDENT,
     })
-    role: UserRole;
+    role!: UserRole;
 
     @ApiProperty({
         example: true,
     })
-    isActive: boolean;
+    isActive!: boolean;
 }
 
 export class AuthResponseDto {
     @ApiProperty({ example: 'jwt_access_token' })
-    accessToken: string;
+    accessToken!: string;
 
     @ApiProperty({ example: 'jwt_refresh_token' })
-    refreshToken: string;
+    refreshToken!: string;
 
     @ApiProperty({ type: AuthUserDto })
-    user: AuthUserDto;
+    user!: AuthUserDto;
 }
