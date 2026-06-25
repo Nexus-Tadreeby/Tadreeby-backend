@@ -11,6 +11,7 @@ import {
     Param,
     Delete,
     UseInterceptors,
+    UploadedFile,
 } from "@nestjs/common";
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -55,8 +56,6 @@ export class AuthController {
 
     ) { }
 
-
-    
     @IsPublic()
     @Post("register/student")
     @ApiOperation({ summary: 'Student registration with document upload' })
@@ -67,7 +66,7 @@ export class AuthController {
             properties: {
                 email: { type: 'string', example: 'student@university.edu' },
                 firstName: { type: 'string', example: 'Shahd' },
-                lastName: { type: 'string', example: 'abu sharif'},
+                lastName: { type: 'string', example: 'abu sharif' },
                 personalID: { type: 'string', example: '123456789' },
                 phone: { type: 'string', example: '0592246851' },
                 password: { type: 'string', example: 'S3cure@Tadreeby2026' },
@@ -94,14 +93,73 @@ export class AuthController {
         FileInterceptor('verificationDocument', multerConfig),
         FileValidationInterceptor,
     )
-    register(
-        @Body(new ZodValidationPipe(studentRegisterSchema))
-        dto: studentRegisterSchemaDto,
-
+    async register(
+        @Body() body: any,  
+        @UploadedFile() file: Express.Multer.File, 
         @Req() req: express.Request,
     ) {
-        return this.authService.registerStudent(dto, req);
+        
+        if (!file) {
+            throw new BadRequestException('Verification document is required');
+        }
+
+    
+        const dtoData = {
+            ...body,
+            verificationDocument: file.filename,  
+        };
+
+        const validatedDto = studentRegisterSchema.parse(dtoData);
+
+      
+        return this.authService.registerStudent(validatedDto, req);
     }
+    
+    // @IsPublic()
+    // @Post("register/student")
+    // @ApiOperation({ summary: 'Student registration with document upload' })
+    // @ApiConsumes('multipart/form-data')
+    // @ApiBody({
+    //     schema: {
+    //         type: 'object',
+    //         properties: {
+    //             email: { type: 'string', example: 'student@university.edu' },
+    //             firstName: { type: 'string', example: 'Shahd' },
+    //             lastName: { type: 'string', example: 'abu sharif'},
+    //             personalID: { type: 'string', example: '123456789' },
+    //             phone: { type: 'string', example: '0592246851' },
+    //             password: { type: 'string', example: 'S3cure@Tadreeby2026' },
+    //             universityId: { type: 'number', example: 1 },
+    //             studentNumber: { type: 'string', example: '20200970' },
+    //             major: { type: 'string', example: 'Software Engineering' },
+    //             verificationDocument: {
+    //                 type: 'string',
+    //                 format: 'binary',
+    //                 description: 'Proof of university enrollment (PDF, JPG, PNG) - Maximum size 10 MB',
+    //             },
+    //         },
+    //     },
+    // })
+    // @ApiResponse({
+    //     status: 201,
+    //     description: 'Student registered successfully, awaiting approval'
+    // })
+    // @ApiResponse({
+    //     status: 400,
+    //     description: 'Data error or file size exceeds 10 MB limit'
+    // })
+    // @UseInterceptors(
+    //     FileInterceptor('verificationDocument', multerConfig),
+    //     FileValidationInterceptor,
+    // )
+    // register(
+    //     @Body(new ZodValidationPipe(studentRegisterSchema))
+    //     dto: studentRegisterSchemaDto,
+
+    //     @Req() req: express.Request,
+    // ) {
+    //     return this.authService.registerStudent(dto, req);
+    // }
 
 
 

@@ -121,7 +121,7 @@ export class FilesController {
   // ============================================
 
   @Post('cv')
-  @Roles(UserRole.STUDENT)
+  @Roles([UserRole.STUDENT])
   @UseInterceptors(FileInterceptor('file', multerOptions))
   @ApiOperation({ summary: 'Upload CV (max 10MB)' })
   @ApiConsumes('multipart/form-data')
@@ -176,7 +176,7 @@ export class FilesController {
   // ============================================
 
   @Post('verification')
-  @Roles(UserRole.STUDENT)
+  @Roles([UserRole.STUDENT])
   @UseInterceptors(FileInterceptor('file', multerOptions))
   @ApiOperation({ summary: 'Upload verification document (max 10MB)' })
   @ApiConsumes('multipart/form-data')
