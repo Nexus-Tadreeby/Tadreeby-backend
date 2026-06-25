@@ -1,3 +1,3 @@
 export class ReuploadDocumentDto {
-    verificationDocument: string;
+    verificationDocument!: string;
 }

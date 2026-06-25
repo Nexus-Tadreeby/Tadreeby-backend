@@ -101,10 +101,10 @@ model User {
   evaluations           Evaluation[]   @relation("UserEvaluations")
   trainerInternships    Internship[]   @relation("TrainerInternship")
   supervisorInternships Internship[]   @relation("SupervisorInternship")
-  sessions    Session[]
+  sessions              Session[]
 
-  university University? @relation(fields: [universityId], references: [id], onDelete: SetNull)
-  company    Company?    @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  university         University?         @relation(fields: [universityId], references: [id], onDelete: SetNull)
+  company            Company?            @relation(fields: [companyId], references: [id], onDelete: SetNull)
   passwordResetCodes PasswordResetCode[]
 
   @@index([isActive])
@@ -135,7 +135,6 @@ model Session {
   @@map("sessions")
 }
 
-
 // ! code Model
 model PasswordResetCode {
   id        Int       @id @default(autoincrement())
@@ -145,10 +144,9 @@ model PasswordResetCode {
   usedAt    DateTime?
   expiresAt DateTime
   used      Boolean   @default(false)
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
 
   @@index([userId])
   @@index([code])
@@ -157,14 +155,16 @@ model PasswordResetCode {
 // ! University Model
 
 model University {
-  id          Int     @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   name        String
   email       String?
-  shortCode   String  @unique
+  shortCode   String   @unique
   phone       String?
   location    String?
   description String?
-  isActive    Boolean @default(true)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())  
+  updatedAt   DateTime @default(now()) 
 
   users       User[]
   internships Internship[]

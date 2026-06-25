@@ -6,7 +6,7 @@ export class LogoutDto {
         example: 'refresh_token_here',
     })
     @IsString()
-    refreshToken: string;
+    refreshToken!: string;
 }
 
 export class LogoutResponseDto {
@@ -14,7 +14,7 @@ export class LogoutResponseDto {
     success!: boolean;
 
     @IsString()
-    message: string;
+    message!: string;
 }
     
 

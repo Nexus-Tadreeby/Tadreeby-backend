@@ -2,32 +2,32 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class RegisterStudentDto {
     @ApiProperty()
-    firstName: string;
+    firstName!: string;
 
     @ApiProperty()
-    lastName: string;
+    lastName!: string;
 
     @ApiProperty()
-    personalID: number;
+    personalID!: number;
 
     @ApiProperty()
-    studentNumber: number;
+    studentNumber!: number;
 
     @ApiProperty()
-    phone: string;
+    phone!: string;
 
     @ApiProperty()
-    email: string;
+    email!: string;
 
     @ApiProperty()
-    major: string;
+    major!: string;
 
     @ApiProperty()
-    password: string;
+    password!: string;
 
     @ApiProperty()
-    universityId: number;
+    universityId!: number;
 
     @ApiProperty()
-    verificationDocument: string;
+    verificationDocument!: string;
 }

@@ -11,6 +11,8 @@ import { StudentModule } from './modules/student/student.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { EmailModule } from './modules/mail/email.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { UniversityModule } from './modules/universities/university.module';
+import { CompaniesModule } from './modules/companies/companies.module';
 
 
 
@@ -26,7 +28,9 @@ import { NotificationModule } from './modules/notification/notification.module';
     AuthModule,
     StudentModule,
     EmailModule,
-    NotificationModule,],
+    NotificationModule,
+    UniversityModule,
+    CompaniesModule,],
 
   controllers: [AppController],
   providers: [
