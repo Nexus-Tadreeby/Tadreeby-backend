@@ -148,7 +148,7 @@ export class UniversityController {
   ): Promise<ApiSuccessResponse<any>> {
     console.log(`👤 ${user.email} (${user.role}) is fetching statistics for university ${id}`);
 
-    // ✅ Check if user has access to this university's statistics
+    // Check if user has access to this university's statistics
     if (user.role !== UserRole.SUPER_ADMIN && user.universityId !== +id) {
       throw new ForbiddenException('You can only view statistics for your own university');
     }
@@ -188,7 +188,7 @@ export class UniversityController {
   ): Promise<ApiSuccessResponse<University>> {
     console.log(`👤 ${user.email} (${user.role}) is updating university ${id}`);
 
-    // ✅ Ownership check: Only SUPER_ADMIN or the university's admin can update
+    //  Ownership check: Only SUPER_ADMIN or the university's admin can update
     if (user.role !== UserRole.SUPER_ADMIN && user.universityId !== +id) {
       throw new ForbiddenException('You can only update your own university');
     }

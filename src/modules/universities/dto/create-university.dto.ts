@@ -9,7 +9,7 @@ export class CreateUniversityDto {
     name!: string;
 
     @IsString()
-    shortCode!: string;
+    shortCode02!: string;
 
    
 }

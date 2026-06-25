@@ -42,8 +42,8 @@ import { VerifyResetCodeDto } from "./dto/verify-reset-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { ForgetPasswordService } from "./forget-password.service";
 import { reset_password } from "./validation/reset-password.validation";
-import { FileValidationInterceptor } from "src/common/interceptors/file-validation.interceptor";
-import { multerConfig } from "src/common/config/multer.config";
+import { multerConfig } from "../../common/config/multer.config";
+import { FileValidationInterceptor } from "../../common/interceptors/file-validation.interceptor";
 
 
 @ApiTags("Auth")
@@ -66,14 +66,14 @@ export class AuthController {
             type: 'object',
             properties: {
                 email: { type: 'string', example: 'student@university.edu' },
-                firstName: { type: 'string', example: 'Ahmed' },
-                lastName: { type: 'string', example: 'Mohammed' },
+                firstName: { type: 'string', example: 'Shahd' },
+                lastName: { type: 'string', example: 'abu sharif'},
                 personalID: { type: 'string', example: '123456789' },
-                phone: { type: 'string', example: '0599123456' },
-                password: { type: 'string', example: 'password123' },
+                phone: { type: 'string', example: '0592246851' },
+                password: { type: 'string', example: 'S3cure@Tadreeby2026' },
                 universityId: { type: 'number', example: 1 },
-                studentNumber: { type: 'string', example: '20231234' },
-                major: { type: 'string', example: 'Computer Science' },
+                studentNumber: { type: 'string', example: '20200970' },
+                major: { type: 'string', example: 'Software Engineering' },
                 verificationDocument: {
                     type: 'string',
                     format: 'binary',
