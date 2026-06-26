@@ -16,7 +16,7 @@ export const studentRegisterSchema = z.object({
     major: z.string().min(1),
     universityId: z.number().int(),
     studentNumber: z.number().int(),
-    verificationDocument: z.string().min(1),
+    verificationDocument: z.string().min(1,'Varificatin document is required!'),
     personalID: z
         .number()
         .int()

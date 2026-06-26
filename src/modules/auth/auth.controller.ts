@@ -56,64 +56,99 @@ export class AuthController {
 
     ) { }
 
+
     @IsPublic()
-    @Post("register/student")
-    @ApiOperation({ summary: 'Student registration with document upload' })
-    @ApiConsumes('multipart/form-data')
+    @Post('register/student')
+    @ApiOperation({ summary: 'Student registration with base64 document' })
     @ApiBody({
         schema: {
             type: 'object',
+            required: ['email', 'firstName', 'lastName', 'personalID', 'password', 'universityId', 'studentNumber', 'verificationDocument'],
             properties: {
                 email: { type: 'string', example: 'student@university.edu' },
                 firstName: { type: 'string', example: 'Shahd' },
                 lastName: { type: 'string', example: 'abu sharif' },
-                personalID: { type: 'string', example: '123456789' },
+                personalID: { type: 'number', example: 123456789 },
                 phone: { type: 'string', example: '0592246851' },
                 password: { type: 'string', example: 'S3cure@Tadreeby2026' },
                 universityId: { type: 'number', example: 1 },
-                studentNumber: { type: 'string', example: '20200970' },
+                studentNumber: { type: 'number', example: 20200970 },
                 major: { type: 'string', example: 'Software Engineering' },
                 verificationDocument: {
                     type: 'string',
-                    format: 'binary',
-                    description: 'Proof of university enrollment (PDF, JPG, PNG) - Maximum size 10 MB',
+                    description: 'Base64 encoded file (PDF, JPG, PNG)',
+                    example: 'data:application/pdf;base64,JVBERi0xLjQK...',
                 },
             },
         },
     })
-    @ApiResponse({
-        status: 201,
-        description: 'Student registered successfully, awaiting approval'
-    })
-    @ApiResponse({
-        status: 400,
-        description: 'Data error or file size exceeds 10 MB limit'
-    })
-    @UseInterceptors(
-        FileInterceptor('verificationDocument', multerConfig),
-        FileValidationInterceptor,
-    )
+    @ApiResponse({ status: 201, description: 'Student registered successfully' })
+    @ApiResponse({ status: 400, description: 'Validation error' })
     async register(
-        @Body() body: any,  
-        @UploadedFile() file: Express.Multer.File, 
+        @Body(new ZodValidationPipe(studentRegisterSchema)) dto: studentRegisterSchemaDto,
         @Req() req: express.Request,
     ) {
+        return this.authService.registerStudent(dto, req);
+    }
+
+    // @IsPublic()
+    // @Post("register/student")
+    // @ApiOperation({ summary: 'Student registration with document upload' })
+    // @ApiConsumes('multipart/form-data')
+    // @ApiBody({
+    //     schema: {
+    //         type: 'object',
+    //         properties: {
+    //             email: { type: 'string', example: 'student@university.edu' },
+    //             firstName: { type: 'string', example: 'Shahd' },
+    //             lastName: { type: 'string', example: 'abu sharif' },
+    //             personalID: { type: 'string', example: '123456789' },
+    //             phone: { type: 'string', example: '0592246851' },
+    //             password: { type: 'string', example: 'S3cure@Tadreeby2026' },
+    //             universityId: { type: 'number', example: 1 },
+    //             studentNumber: { type: 'string', example: '20200970' },
+    //             major: { type: 'string', example: 'Software Engineering' },
+    //             verificationDocument: {
+    //                 type: 'string',
+    //                 format: 'binary',
+    //                 description: 'Proof of university enrollment (PDF, JPG, PNG) - Maximum size 10 MB',
+    //             },
+    //         },
+    //     },
+    // })
+    // @ApiResponse({
+    //     status: 201,
+    //     description: 'Student registered successfully, awaiting approval'
+    // })
+    // @ApiResponse({
+    //     status: 400,
+    //     description: 'Data error or file size exceeds 10 MB limit'
+    // })
+    // @UseInterceptors(
+    //     FileInterceptor('verificationDocument', multerConfig),
+    //     FileValidationInterceptor,
+    // )
+    // async register(
+    //     @Body() body: any,  
+    //     @UploadedFile() file: Express.Multer.File, 
+    //     @Req() req: express.Request,
+    // ) {
         
-        if (!file) {
-            throw new BadRequestException('Verification document is required');
-        }
+    //     if (!file) {
+    //         throw new BadRequestException('Verification document is required');
+    //     }
 
     
-        const dtoData = {
-            ...body,
-            verificationDocument: file.filename,  
-        };
+    //     const dtoData = {
+    //         ...body,
+    //         verificationDocument: file.filename,  
+    //     };
 
-        const validatedDto = studentRegisterSchema.parse(dtoData);
+    //     const validatedDto = studentRegisterSchema.parse(dtoData);
 
       
-        return this.authService.registerStudent(validatedDto, req);
-    }
+    //     return this.authService.registerStudent(validatedDto, req);
+    // }
     
     // @IsPublic()
     // @Post("register/student")

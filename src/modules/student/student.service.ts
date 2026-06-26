@@ -7,6 +7,8 @@ import { StudentRegisteredEvent } from './events/student-registered.event';
 import { hashPassword } from '../auth/utils/crypto.util';
 import { removeFields } from '../../common/utils/object.util';
 import { AuthUserResponse } from 'src/common/types/unifiedType.types';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class StudentService {
@@ -27,6 +29,34 @@ export class StudentService {
     await this.ensurePersonalIdNotUsed(dto.personalID);
 
     const hashedPassword = await hashPassword(dto.password);
+
+    let verificationFileName = '' 
+    if (dto.verificationDocument) {
+      try {
+
+        const base64Data = dto.verificationDocument.replace(/^data:.*?;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
+
+      
+        const ext = this.getFileExtension(dto.verificationDocument);
+        const filename = `verification-${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
+
+        const uploadDir = process.env.UPLOAD_PATH || './uploads/pending';
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        const filePath = path.join(uploadDir, filename);
+        // fs.writeFileSync(filePath, buffer);
+        await fs.promises.writeFile(filePath, buffer);
+
+        verificationFileName = filename; 
+        console.log(`✅ File saved: ${filePath}`);
+      } catch (error) {
+        console.error('❌ Error saving verification document:', error);
+        throw new ConflictException('Failed to save verification document');
+      }
+    }
 
     //! try & catch
 
@@ -52,7 +82,8 @@ export class StudentService {
           universityId: dto.universityId,
           studentNumber: dto.studentNumber,
           major : dto.major,
-          verificationDocument: dto.verificationDocument,
+          // verificationDocument: dto.verificationDocument,
+          verificationDocument: verificationFileName,
           approvalStatus: StudentApprovalStatus.PENDING,
         },
       });
@@ -101,7 +132,17 @@ export class StudentService {
 
   }
 
+  private getFileExtension(base64: string): string {
+    if (base64.includes('data:image/png')) return '.png';
+    if (base64.includes('data:image/jpeg') || base64.includes('data:image/jpg'))
+      return '.jpg';
+    if (base64.includes('data:image/gif')) return '.gif';
+    if (base64.includes('data:image/webp')) return '.webp';
+    if (base64.includes('data:application/pdf')) return '.pdf';
+    return '.pdf';
+  }
 
+  
   private async ensurePersonalIdNotUsed(personalID: number ): Promise<void> {
     const existingUser = await this.prisma.user.findUnique({
       where: { personalID },
