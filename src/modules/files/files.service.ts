@@ -17,8 +17,8 @@ export enum FileType {
 export class FilesService {
   constructor(private readonly prisma: DatabaseService) { }
 
-  // ✅ Maximum file size: 5MB
-  private readonly MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  // ✅ Maximum file size: 10MB
+  private readonly MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
   // ============================================
   // ✅ GET FILE PATH
@@ -40,7 +40,7 @@ export class FilesService {
   // ============================================
 
   getFileUrl(type: FileType, userId: number, filename: string): string {
-    const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+    const baseUrl = process.env.BASE_URL || 'http://localhost:6060';
     return `${baseUrl}/api/v1/files/${type}/${userId}/${filename}`;
   }
 
@@ -153,7 +153,7 @@ export class FilesService {
   // ============================================
 
   private validateFile(file: Express.Multer.File): void {
-    // ✅ 5MB limit
+    // ✅ 10MB limit
     if (file.size > this.MAX_FILE_SIZE) {
       throw new BadRequestException(
         `File size exceeds ${this.MAX_FILE_SIZE / 1024 / 1024}MB limit`
