@@ -17,12 +17,10 @@ export enum FileType {
 export class FilesService {
   constructor(private readonly prisma: DatabaseService) { }
 
-  // ✅ Maximum file size: 10MB
+  //  Maximum file size: 10MB
   private readonly MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-  // ============================================
-  // ✅ GET FILE PATH
-  // ============================================
+//* GET FILE PATH
 
   getFilePath(type: FileType, userId: number, filename: string): string {
     const basePath = process.env.UPLOAD_PATH || './uploads';
@@ -35,25 +33,22 @@ export class FilesService {
     return path.join(basePath, folderMap[type], filename);
   }
 
-  // ============================================
-  // ✅ GET FILE URL
-  // ============================================
+//* GET FILE URL
 
   getFileUrl(type: FileType, userId: number, filename: string): string {
     const baseUrl = process.env.BASE_URL || 'http://localhost:6060';
     return `${baseUrl}/api/v1/files/${type}/${userId}/${filename}`;
   }
 
-  // ============================================
-  // ✅ UPLOAD FILE
-  // ============================================
+
+//* UPLOAD FILE
 
   async uploadFile(
     file: Express.Multer.File,
     type: FileType,
     userId: number,
   ): Promise<{ filename: string; url: string; path: string }> {
-    // ✅ Validate file (with 10MB limit)
+    //  Validate file (with 10MB limit)
     this.validateFile(file);
 
     // Create folder if not exists
@@ -70,7 +65,8 @@ export class FilesService {
     const filePath = path.join(folderPath, filename);
 
     // Save file
-    fs.writeFileSync(filePath, file.buffer);
+    // fs.writeFileSync(filePath, file.buffer);
+    await fs.promises.writeFile(filePath, file.buffer);
 
     // Update database based on type
     await this.updateUserFile(type, userId, filename);
@@ -82,10 +78,7 @@ export class FilesService {
     };
   }
 
-  // ============================================
-  // ✅ DELETE FILE
-  // ============================================
-
+// * DELETE FILE
   async deleteFile(type: FileType, userId: number): Promise<void> {
     // Get current filename from database
     const currentFile = await this.getCurrentFile(type, userId);
@@ -106,9 +99,9 @@ export class FilesService {
     await this.clearUserFile(type, userId);
   }
 
-  // ============================================
-  // ✅ GET CURRENT FILE
-  // ============================================
+
+
+//* GET CURRENT FILE NAME
 
   async getCurrentFile(type: FileType, userId: number): Promise<string | null> {
     switch (type) {
@@ -138,9 +131,7 @@ export class FilesService {
     }
   }
 
-  // ============================================
-  // ✅ GET FILE SIZE (optional)
-  // ============================================
+//* GET FILE SIZE 
 
   async getFileSize(type: FileType, userId: number, filename: string): Promise<number> {
     const filePath = this.getFilePath(type, userId, filename);
@@ -148,12 +139,10 @@ export class FilesService {
     return stats.size;
   }
 
-  // ============================================
-  // ✅ PRIVATE METHODS
-  // ============================================
+//* all private methods
 
   private validateFile(file: Express.Multer.File): void {
-    // ✅ 10MB limit
+    // 10MB limit
     if (file.size > this.MAX_FILE_SIZE) {
       throw new BadRequestException(
         `File size exceeds ${this.MAX_FILE_SIZE / 1024 / 1024}MB limit`
