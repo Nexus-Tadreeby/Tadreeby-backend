@@ -65,8 +65,8 @@ export class FilesService {
     const filePath = path.join(folderPath, filename);
 
     // Save file
-    // fs.writeFileSync(filePath, file.buffer);
-    await fs.promises.writeFile(filePath, file.buffer);
+    fs.writeFileSync(filePath, file.buffer);
+    // await fs.promises.writeFile(filePath, file.buffer);
 
     // Update database based on type
     await this.updateUserFile(type, userId, filename);
