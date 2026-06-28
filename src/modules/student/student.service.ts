@@ -20,13 +20,15 @@ export class StudentService {
   ) { }
 
 
-  async create(dto: RegisterStudentDto): Promise<AuthUserResponse> {
+  async create(dto: Omit<RegisterStudentDto, 'confirmPassword'>): Promise<AuthUserResponse> {
 
     const email = this.normalizeEmail(dto.email)
     const phoneNumber = dto.phone.trim()
 
     await this.ensureEmailNotUsed(dto.email)
     await this.ensurePersonalIdNotUsed(dto.personalID);
+    await this.ensureStudentNumberNotUsed(dto.studentNumber, dto.universityId);
+
 
     const hashedPassword = await hashPassword(dto.password);
 
@@ -238,5 +240,18 @@ export class StudentService {
   }
 
 
+  private async ensureStudentNumberNotUsed(studentNumber: number, universityId: number): Promise<void> {
+    const existing = await this.prisma.studentProfile.findFirst({
+      where: {
+        studentNumber,
+        universityId,
+      },
+    });
 
+    if (existing) {
+      throw new ConflictException(
+        `Student number already exists in this university`
+      );
+    }
+  }
 }

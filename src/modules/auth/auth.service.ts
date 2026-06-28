@@ -35,7 +35,7 @@ export class AuthService {
 
     
     
-    async registerStudent(dto: RegisterStudentDto, req: Request) {
+    async registerStudent(dto:Omit<RegisterStudentDto, 'confirmPassword'>, req: Request) {
         const student = await this.studentService.create(dto);
 
         const session = await this.createSession(student, req);

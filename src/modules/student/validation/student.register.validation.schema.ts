@@ -10,6 +10,7 @@ import { RegisterStudentDto } from "../dto/register-student.dto";
 export const studentRegisterSchema = z.object({
     email: emailSchema,
     password: passwordSchema,
+    confirmPassword: z.string().min(8, 'Confirm password is required'), 
     firstName: nameSchema,
     lastName: nameSchema,
     phone: phoneSchema,
@@ -20,10 +21,13 @@ export const studentRegisterSchema = z.object({
     personalID: z
         .number()
         .int()
-        .gte(100000000)
-        .lte(999999999),
-})
-    .strict() satisfies ZodType<RegisterStudentDto>
+        .min(100000000, 'Personal ID must be exactly 9 digits')
+        .max(999999999, 'Personal ID must be exactly 9 digits'),
+}).strict()
+    .refine((data) => data.password === data.confirmPassword, {
+        message: "Passwords don't match",
+        path: ['confirmPassword'],
+    }) satisfies ZodType<RegisterStudentDto>
 
 export type studentRegisterSchemaDto = z.infer<typeof studentRegisterSchema>;
 
