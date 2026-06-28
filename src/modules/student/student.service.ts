@@ -39,7 +39,10 @@ export class StudentService {
 
       
         const ext = this.getFileExtension(dto.verificationDocument);
-        const filename = `verification-${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
+
+        const baseName = this.generateVerificationFileName(dto.firstName, dto.lastName);
+        const filename = `${baseName}${ext}`;
+        // const filename = `verification-${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
 
         const uploadDir = process.env.UPLOAD_PATH || './uploads/pending';
         if (!fs.existsSync(uploadDir)) {
@@ -214,4 +217,26 @@ export class StudentService {
 
     return updated;
   }
+
+
+
+  private sanitizeFileName(name: string): string {
+    return name
+      .trim()
+      .replace(/\s+/g, '_')
+      .replace(/[^a-zA-Z0-9_\-]/g, ''); 
+  }
+
+
+  private generateVerificationFileName(firstName: string, lastName: string): string {
+    const safeFirst = this.sanitizeFileName(firstName);
+    const safeLast = this.sanitizeFileName(lastName);
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    //  Shahd_abu_sharif_verification_document_1782458095747_a1b2c3.pdf
+    return `${safeFirst}_${safeLast}_verification_document_${timestamp}_${random}`;
+  }
+
+
+
 }
