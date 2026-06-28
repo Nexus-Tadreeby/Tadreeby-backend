@@ -26,6 +26,9 @@ export class RegisterStudentDto {
     password!: string;
 
     @ApiProperty()
+    confirmPassword!: string; 
+
+    @ApiProperty()
     universityId!: number;
 
     @ApiProperty()

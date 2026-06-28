@@ -88,7 +88,8 @@ export class AuthController {
         @Body(new ZodValidationPipe(studentRegisterSchema)) dto: studentRegisterSchemaDto,
         @Req() req: express.Request,
     ) {
-        return this.authService.registerStudent(dto, req);
+        const { confirmPassword, ...cleanDto } = dto;
+        return this.authService.registerStudent(cleanDto, req);
     }
 
     // @IsPublic()
