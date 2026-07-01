@@ -22,6 +22,9 @@ import { NotificationService } from "../notification/notification.service";
 // import { emailLayout } from "../student/helpers/email-templates";
 import { buildLoginAlertEmail, emailLayout, heading, paragraph, section } from '../student/helpers/email-templates';
 import { RegisterStudentDto } from "../student/dto/register-student.dto";
+import { DeviceDetectionService } from "src/common/services/device-detection.service";
+import { UserStatusService } from "src/common/services/UserStatus.service";
+import { convertBigIntFields } from "src/common/utils/bigint.util";
 @Injectable()
 export class AuthService {
     constructor(
@@ -30,6 +33,8 @@ export class AuthService {
         private readonly studentService: StudentService,
         private readonly emailService: EmailService,
         private readonly notificationService: NotificationService,
+        private readonly deviceDetectionService: DeviceDetectionService,
+        private readonly userStatusService: UserStatusService,
     ) { }
 
 
@@ -66,12 +71,17 @@ export class AuthService {
             throw new UnauthorizedException("Account disabled");
         }
 
+        await this.userStatusService.setOnline(user.id);
+        
         const session = await this.createSession(user, req);
 
         const userWithoutPassword = removeFields(user, ["password"]);
 
+        const safeUser = convertBigIntFields(userWithoutPassword);
+
+
         return {
-            user: userWithoutPassword,
+            user: safeUser,
             ...session,
         };
     }
@@ -146,7 +156,7 @@ export class AuthService {
     //     };
     // }
     private async createSession(
-        user: Pick<User, "id" | "role" | "email">,
+        user: Pick<User, "id" | "role" | "email" | "firstName">,
         req: Request,
     ) {
         const refreshToken = generateRefreshToken();
@@ -160,42 +170,76 @@ export class AuthService {
         const userAgent = req.headers["user-agent"] ?? "unknown";
         const ipAddress = req.ip ?? "unknown";
 
-        // get all active sessions
-        const activeSessions = await this.prisma.session.findMany({
-            where: {
-                userId: user.id,
-                revokedAt: null,
-            },
-        });
-
-        // detect if device already exists
-        const knownDevice = activeSessions.some(
-            (s) => s.userAgent === userAgent,
-        );
-
+        const deviceInfo = this.deviceDetectionService.detectDeviceInfo(userAgent);
+        
         const session = await this.prisma.session.create({
             data: {
                 userId: user.id,
                 refreshTokenHash,
-                deviceInfo: userAgent,
+                // deviceInfo: userAgent,
+                deviceType: deviceInfo.deviceType,
                 ipAddress,
                 userAgent,
                 expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             },
         });
 
+        
+        // get all active sessions
+        const activeSessions = await this.prisma.session.findMany({
+            where: {
+                userId: user.id,
+                revokedAt: null,
+            },
+            select: { 
+                deviceType: true,
+                userAgent: true
+             },
+        });
+
+        const knownDevice = activeSessions.some(
+            (s) => s.userAgent === userAgent,
+        );
+
+
+        const isNewDevice = this.deviceDetectionService.isNewDevice(
+            deviceInfo.deviceType,
+            activeSessions.map((s) => ({ deviceType: s.deviceType as any })),
+        );
+
+
+        // detect if device already exists
+        // const knownDevice = activeSessions.some(
+        //     (s) => s.userAgent === userAgent,
+        // );
+
+      
         console.time("email");
 
 
 
 
+        if (isNewDevice && activeSessions.length > 0) {
+            void this.emailService.sendMail(
+                user.email,
+                "🔐 New Device Login Detected",
+                buildLoginAlertEmail(
+                    {
+                        id: user.id,
+                        email: user.email,
+                        firstName: user.firstName,
+                    },
+                    deviceInfo,      
+                    ipAddress, 
+                ),
+            );
+        }
 
-
-        void this.emailService.sendMail(
-            user.email,
-            "🔐 Security Alert: New login detected",  
-            buildLoginAlertEmail(user, req),         
-        );
+        // void this.emailService.sendMail(
+        //     user.email,
+        //     "🔐 Security Alert: New login detected",  
+        //     buildLoginAlertEmail(user, req),         
+        // );
 
 
 
@@ -298,24 +342,89 @@ export class AuthService {
 
 
 
-    async logout(dto: LogoutDto) {
+    // async logout(dto: LogoutDto) {
         
-        await this.prisma.session.updateMany({
+    //     await this.prisma.session.updateMany({
+    //         where: {
+    //             refreshTokenHash : dto.refreshToken ,
+    //             revokedAt: null,
+    //             // id: dto.refreshToken
+    //         },
+    //         data: {
+    //             revokedAt: new Date(),
+    //         },
+    //     });
+
+    //     return {
+    //         success: true,
+    //         message: "Logged out successfully",
+    //     };
+    // }
+
+
+
+
+
+
+    async logout(userId: number, sessionId?: string) {
+        console.log(`🔴 Logout attempt for userId: ${userId}, sessionId: ${sessionId}`);
+
+           if (!sessionId) {
+        throw new UnauthorizedException('Session ID not found in token');
+    }
+
+
+        const session = await this.prisma.session.findFirst({
             where: {
-                refreshTokenHash : dto.refreshToken ,
+                id: sessionId,
+                userId: userId,
                 revokedAt: null,
-                // id: dto.refreshToken
-            },
-            data: {
-                revokedAt: new Date(),
             },
         });
+
+        if (!session) {
+            throw new UnauthorizedException('Session not found or already revoked');
+        }
+
+        // إبطال الجلسة
+        await this.prisma.session.update({
+            where: { id: sessionId },
+            data: { revokedAt: new Date() },
+        });
+
+        const allSessions = await this.prisma.session.findMany({
+            where: {
+                userId: userId,
+                revokedAt: null,
+            },
+        });
+        console.log(`📊 All active sessions:`, allSessions.map(s => s.id));
+
+        // التحقق من الجلسات النشطة الأخرى
+        const activeSessions = await this.prisma.session.count({
+            where: {
+                userId: userId,
+                revokedAt: null,
+            },
+        });
+
+        // if (activeSessions === 0) {
+        //     await this.userStatusService.setOffline(userId);
+        // }
+
+        await this.userStatusService.setOffline(userId);
+
+        
 
         return {
             success: true,
             message: "Logged out successfully",
         };
     }
+
+
+
+
 
 
     async getSessions(userId: number) {
