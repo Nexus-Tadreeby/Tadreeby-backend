@@ -12,7 +12,9 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { EmailModule } from './modules/mail/email.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { UniversityModule } from './modules/organization/universities/university.module';
-// import { CompaniesModule } from './organization/companies/companies.module';
+// import { AiModule } from './modules/ai/ai.module';
+// import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { CompaniesModule } from './modules/organization/companies/companies.module';
 
 
 
@@ -30,7 +32,9 @@ import { UniversityModule } from './modules/organization/universities/university
     EmailModule,
     NotificationModule,
     UniversityModule,
-    // CompaniesModule,
+    CompaniesModule,
+    // AiModule,
+    // DashboardModule,
     ],
 
   controllers: [AppController],
