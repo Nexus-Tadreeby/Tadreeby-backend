@@ -42,8 +42,16 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  try {
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api', app, document);
+    console.log('✅ Swagger enabled successfully at /api');
+  } catch (error) {
+    console.error('❌ Swagger setup failed:', error instanceof Error ? error.message : String(error));
+  }
+
+  // const document = SwaggerModule.createDocument(app, config);
+  // SwaggerModule.setup('api', app, document);
   console.log("DB URL:", process.env.DATABASE_URL);
 
 
