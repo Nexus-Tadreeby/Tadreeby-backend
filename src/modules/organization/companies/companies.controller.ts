@@ -46,6 +46,23 @@ import { AuthedUser } from 'src/common/decorators/authedUser.decorator';
 export class CompaniesController {
   constructor(private readonly companiesService: CompaniesService) { }
 
+  
+  
+    @Get()
+    @Roles([UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.COMPANY_TRAINER])
+    @UseInterceptors(PaginationInterceptor)
+    @ApiOperation({ summary: 'Get all companies with filters & pagination' })
+    @ApiResponse({ status: HttpStatus.OK })
+    async findAll(
+      @Query(new ZodValidationPipe(CompanyQuerySchema))
+      query: CompanyQueryType,
+      @AuthedUser() user: any,
+    ) {
+      console.log(`👤 ${user.email} (${user.role}) is fetching companies`);
+      return this.companiesService.findAll(query);
+    }
+  
+    
 
   
   
@@ -66,23 +83,6 @@ export class CompaniesController {
  
   
 
-
-
-  @Get()
-  @Roles([UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.COMPANY_TRAINER])
-  @UseInterceptors(PaginationInterceptor)
-  @ApiOperation({ summary: 'Get all companies with filters & pagination' })
-  @ApiResponse({ status: HttpStatus.OK })
-  async findAll(
-    @Query(new ZodValidationPipe(CompanyQuerySchema))
-    query: CompanyQueryType,
-    @AuthedUser() user: any,
-  ) {
-    console.log(`👤 ${user.email} (${user.role}) is fetching companies`);
-    return this.companiesService.findAll(query);
-  }
-
-  
 
 
 
