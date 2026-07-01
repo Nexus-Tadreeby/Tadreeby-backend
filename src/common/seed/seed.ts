@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { PrismaClient, StudentApprovalStatus, UserRole } from "@prisma/client";
+import { CompanyAction, PrismaClient, StatusType, StudentApprovalStatus, UniversityAction, UserAction, UserRole } from "@prisma/client";
 import * as argon2 from "argon2";
 import { PrismaPg } from "@prisma/adapter-pg";
 
@@ -11,7 +11,6 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({
     adapter,
 });
-
 // -------------------------------------
 // PERSONAL ID GENERATOR
 // -------------------------------------
@@ -19,6 +18,16 @@ let personalIdCounter = 100000000;
 
 function generatePersonalId() {
     return personalIdCounter++;
+}
+
+// -------------------------------------
+// RECOVERY EMAIL GENERATOR
+// -------------------------------------
+let recoveryEmailCounter = 0;
+
+function buildRecoveryEmail(firstName: string, lastName: string): string {
+    const base = `${firstName.toLowerCase().replace(/\s+/g, '')}${lastName.toLowerCase().replace(/\s+/g, '')}`;
+    return `${base}${recoveryEmailCounter++}@gmail.com`;
 }
 
 // -------------------------------------
@@ -69,12 +78,21 @@ async function main() {
                 shortCode: uni.shortCode.toLowerCase(),
                 email: `admin.${uni.shortCode.toLowerCase()}@tadreeby.com`,
                 isActive: true,
-                // createdAt و updatedAt ستُضاف تلقائياً
             },
         });
 
         createdUniversities.push(university);
         console.log(`  ✅ Created university: ${uni.name}`);
+
+        // ✅ Create audit log for university creation
+        await prisma.universityAuditLog.create({
+            data: {
+                universityId: university.id,
+                action: UniversityAction.CREATED,
+                performedBy: 1, // Super Admin (will be created later, update after)
+                newValue: { name: university.name, shortCode: university.shortCode },
+            },
+        });
     }
 
     // -------------------------------------
@@ -96,6 +114,16 @@ async function main() {
 
         createdCompanies.push(company);
         console.log(`  ✅ Created company: ${comp.name}`);
+
+        // ✅ Create audit log for company creation
+        await prisma.companyAuditLog.create({
+            data: {
+                companyId: company.id,
+                action: CompanyAction.CREATED,
+                performedBy: 1, // Super Admin
+                newValue: { name: company.name, shortCode: company.shortCode },
+            },
+        });
     }
 
     // -------------------------------------
@@ -103,7 +131,7 @@ async function main() {
     // -------------------------------------
 
     console.log("👑 Creating Super Admin...");
-    await prisma.user.create({
+    const superAdmin = await prisma.user.create({
         data: {
             firstName: "Shahd",
             lastName: "Sharif",
@@ -112,9 +140,41 @@ async function main() {
             role: UserRole.SUPER_ADMIN,
             personalID: generatePersonalId(),
             isActive: true,
+            recoveryEmail: buildRecoveryEmail("shahd", "abusharife"),
         },
     });
     console.log("  ✅ Created Super Admin");
+
+    // ✅ Create User Status for Super Admin
+    await prisma.userStatus.create({
+        data: {
+            userId: superAdmin.id,
+            status: StatusType.OFFLINE,
+            lastSeen: new Date(),
+        },
+    });
+
+    // ✅ Create User Activity Log for Super Admin
+    await prisma.userActivityLog.create({
+        data: {
+            userId: superAdmin.id,
+            action: UserAction.LOGIN,
+            ipAddress: "127.0.0.1",
+            userAgent: "Seed Script",
+            deviceInfo: "Local Seed",
+        },
+    });
+
+    // ✅ Update audit logs with correct performedBy
+    await prisma.universityAuditLog.updateMany({
+        where: { performedBy: 1 },
+        data: { performedBy: superAdmin.id },
+    });
+
+    await prisma.companyAuditLog.updateMany({
+        where: { performedBy: 1 },
+        data: { performedBy: superAdmin.id },
+    });
 
     // -------------------------------------
     // UNIVERSITY ADMINS
@@ -131,7 +191,7 @@ async function main() {
         const uni = createdUniversities[i];
         const admin = uniAdmins[i];
 
-        await prisma.user.create({
+        const user = await prisma.user.create({
             data: {
                 firstName: admin.first,
                 lastName: admin.last,
@@ -141,8 +201,19 @@ async function main() {
                 universityId: uni.id,
                 personalID: generatePersonalId(),
                 isActive: true,
+                recoveryEmail: buildRecoveryEmail(admin.first, admin.last), 
             },
         });
+
+        // ✅ Create User Status
+        await prisma.userStatus.create({
+            data: {
+                userId: user.id,
+                status: StatusType.OFFLINE,
+                lastSeen: new Date(),
+            },
+        });
+
         console.log(`  ✅ Created University Admin: ${admin.first} ${admin.last} for ${uni.name}`);
     }
 
@@ -171,14 +242,22 @@ async function main() {
                 universityId: uni.id,
                 personalID: generatePersonalId(),
                 isActive: true,
-
-                // ✅ Create supervisor profile directly
+                recoveryEmail: buildRecoveryEmail(s.first, s.last),
                 supervisorProfile: {
                     create: {
                         universityId: uni.id,
                         department: "Computer Science",
                     },
                 },
+            },
+        });
+
+        // ✅ Create User Status
+        await prisma.userStatus.create({
+            data: {
+                userId: user.id,
+                status: StatusType.OFFLINE,
+                lastSeen: new Date(),
             },
         });
 
@@ -199,7 +278,7 @@ async function main() {
         const comp = createdCompanies[i];
         const admin = companyAdmins[i];
 
-        await prisma.user.create({
+        const user = await prisma.user.create({
             data: {
                 firstName: admin.first,
                 lastName: admin.last,
@@ -209,8 +288,19 @@ async function main() {
                 companyId: comp.id,
                 personalID: generatePersonalId(),
                 isActive: true,
+                recoveryEmail: buildRecoveryEmail(admin.first, admin.last),
             },
         });
+
+        // ✅ Create User Status
+        await prisma.userStatus.create({
+            data: {
+                userId: user.id,
+                status: StatusType.OFFLINE,
+                lastSeen: new Date(),
+            },
+        });
+
         console.log(`  ✅ Created Company Admin: ${admin.first} ${admin.last} for ${comp.name}`);
     }
 
@@ -238,8 +328,7 @@ async function main() {
                 companyId: comp.id,
                 personalID: generatePersonalId(),
                 isActive: true,
-
-                // ✅ Create trainer profile directly
+                recoveryEmail: buildRecoveryEmail(t.first, t.last),   
                 trainerProfile: {
                     create: {
                         companyId: comp.id,
@@ -247,6 +336,15 @@ async function main() {
                         specialization: "Software Engineering",
                     },
                 },
+            },
+        });
+
+        // ✅ Create User Status
+        await prisma.userStatus.create({
+            data: {
+                userId: user.id,
+                status: StatusType.OFFLINE,
+                lastSeen: new Date(),
             },
         });
 
@@ -281,8 +379,9 @@ async function main() {
         const email = `${s.first.toLowerCase().replace(/\s+/g, "")}.${s.last
             .toLowerCase()
             .replace(/\s+/g, "")}${i}@test.com`;
+        const recoveryEmail = buildRecoveryEmail(s.first, s.last);
 
-        await prisma.user.create({
+        const user = await prisma.user.create({
             data: {
                 firstName: s.first,
                 lastName: s.last,
@@ -292,8 +391,7 @@ async function main() {
                 universityId: uni.id,
                 personalID: generatePersonalId(),
                 isActive: true,
-
-                // ✅ Create student profile directly
+                recoveryEmail: buildRecoveryEmail(s.first, s.last),
                 studentProfile: {
                     create: {
                         universityId: uni.id,
@@ -306,6 +404,15 @@ async function main() {
                         verificationDocument: "seed-file.pdf",
                     },
                 },
+            },
+        });
+
+        // ✅ Create User Status
+        await prisma.userStatus.create({
+            data: {
+                userId: user.id,
+                status: StatusType.OFFLINE,
+                lastSeen: new Date(),
             },
         });
 
@@ -322,6 +429,10 @@ async function main() {
     console.log(`  - ${companyAdmins.length} Company Admins`);
     console.log(`  - ${trainers.length} Company Trainers`);
     console.log(`  - 10 Students`);
+    console.log(`  - ${await prisma.userStatus.count()} User Statuses created`);
+    console.log(`  - ${await prisma.userActivityLog.count()} User Activity Logs created`);
+    console.log(`  - ${await prisma.universityAuditLog.count()} University Audit Logs created`);
+    console.log(`  - ${await prisma.companyAuditLog.count()} Company Audit Logs created`);
 }
 
 // -------------------------------------
