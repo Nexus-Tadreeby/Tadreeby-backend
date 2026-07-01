@@ -11,7 +11,7 @@ import { StudentModule } from './modules/student/student.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { EmailModule } from './modules/mail/email.module';
 import { NotificationModule } from './modules/notification/notification.module';
-import { UniversityModule } from './organization/universities/university.module';
+import { UniversityModule } from './modules/organization/universities/university.module';
 // import { CompaniesModule } from './organization/companies/companies.module';
 
 
