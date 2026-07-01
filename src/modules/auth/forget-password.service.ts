@@ -41,9 +41,12 @@ export class ForgetPasswordService {
     async forgotPassword(
         dto: ForgotPasswordDto,
     ) {
-        const user = await this.prisma.user.findUnique({
+        const user = await this.prisma.user.findFirst({
             where: {
-                email: dto.email,
+                OR: [
+                    { email: dto.email },           
+                    { recoveryEmail: dto.email },   
+                ],
             },
         });
 
