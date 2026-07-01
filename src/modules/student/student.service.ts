@@ -85,7 +85,7 @@ export class StudentService {
         data: {
           userId: user.id,
           universityId: dto.universityId,
-          studentNumber: dto.studentNumber,
+          studentNumber: BigInt(dto.studentNumber),
           major : dto.major,
           // verificationDocument: dto.verificationDocument,
           verificationDocument: verificationFileName,
@@ -101,6 +101,14 @@ export class StudentService {
       return { ...userWithoutPassword, studentProfile: profile };
       // return { userWithoutPassword, studentProfile };
     })
+
+    const formattedStudent = {
+      ...student,
+      studentProfile: student.studentProfile ? {
+        ...student.studentProfile,
+        studentNumber: Number(student.studentProfile.studentNumber),
+      } : null,
+    };
 
     // //*  event
     // this.eventEmitter.emit(
@@ -129,7 +137,7 @@ export class StudentService {
       new StudentRegisteredEvent(student.id, dto.universityId),
     );
 
-    return student;
+    return formattedStudent;
     // return {
     //   message: 'Registration successful. Pending approval.',
     //   user: student.userWithoutPassword,
