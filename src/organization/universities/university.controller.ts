@@ -13,7 +13,7 @@ import {
   UseGuards,
   ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { UniversityService } from './university.service';
 import {
   createUniversitySchema,
@@ -28,7 +28,7 @@ import {
   type UniversityQueryType
 } from './validation/university-query.validation';
 import { PaginationInterceptor } from 'src/common/interceptors/pagination.interceptor';
-import { ApiSuccessResponse, ApiPaginationSuccessResponse } from 'src/common/types/unifiedType.types';
+import type { ApiSuccessResponse, ApiPaginationSuccessResponse, authedUserType } from 'src/common/types/unifiedType.types';
 import { University, UserRole } from '@prisma/client';
 import { ZodValidationPipe } from 'src/common/pipes/zod.pipe';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
@@ -44,7 +44,7 @@ import { AuthedUser } from 'src/common/decorators/authedUser.decorator';
 export class UniversityController {
   constructor(private readonly universityService: UniversityService) { }
 
-  @Post("create")
+  @Post("create-university")
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Create a new university' })
   @ApiResponse({
@@ -66,7 +66,7 @@ export class UniversityController {
   async create(
     @Body(new ZodValidationPipe(createUniversitySchema))
     createUniversityDto: CreateUniversitySchemaDto,
-    @AuthedUser() user: any,
+    @AuthedUser() user: authedUserType,
   ): Promise<ApiSuccessResponse<University>> {
     console.log(`👤 ${user.email} (${user.role}) is creating a university`);
 
@@ -144,7 +144,7 @@ export class UniversityController {
   })
   async getStatistics(
     @Param('id') id: string,
-    @AuthedUser() user: any,
+    @AuthedUser() user: authedUserType,
   ): Promise<ApiSuccessResponse<any>> {
     console.log(`👤 ${user.email} (${user.role}) is fetching statistics for university ${id}`);
 
@@ -184,7 +184,7 @@ export class UniversityController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateUniversitySchema))
     updateUniversityDto: UpdateUniversitySchemaDto,
-    @AuthedUser() user: any,
+    @AuthedUser() user: authedUserType,
   ): Promise<ApiSuccessResponse<University>> {
     console.log(`👤 ${user.email} (${user.role}) is updating university ${id}`);
 
@@ -193,7 +193,7 @@ export class UniversityController {
       throw new ForbiddenException('You can only update your own university');
     }
 
-    const data = await this.universityService.update(+id, updateUniversityDto);
+    const data = await this.universityService.update(+id, updateUniversityDto , user);
 
     return {
       success: true,
@@ -230,6 +230,79 @@ export class UniversityController {
       data,
     };
   }
+
+  // ============================================
+  // ✅ SEARCH UNIVERSITIES
+  // ============================================
+
+  @Get('search')
+  @ApiOperation({
+    summary: 'Search universities by name or shortCode',
+    description: 'Search universities by name, shortCode, email, or description with pagination',
+  })
+  @ApiQuery({ name: 'q', type: 'string', description: 'Search query' })
+  @ApiQuery({ name: 'page', type: 'number', required: false, description: 'Page number', example: 1 })
+  @ApiQuery({ name: 'limit', type: 'number', required: false, description: 'Items per page', example: 10 })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    schema: {
+      example: {
+        success: true,
+        data: [
+          {
+            id: 1,
+            name: 'Islamic University of Gaza',
+            shortCode: 'IUG',
+            email: 'info@iugaza.edu.ps',
+            phone: '+9708288888',
+            location: 'Gaza City, Palestine',
+            description: 'Leading university in Gaza Strip',
+            logo: null,
+            isActive: true,
+            createdAt: '2026-06-28T10:00:00.000Z',
+            updatedAt: '2026-06-28T10:00:00.000Z',
+            _count: {
+              users: 150,
+              students: 120,
+              supervisors: 25,
+              internships: 45,
+            },
+          },
+        ],
+        meta: {
+          page: 1,
+          limit: 10,
+          total: 25,
+          totalPages: 3,
+          hasNextPage: true,
+          hasPreviousPage: false,
+        },
+      },
+    },
+  })
+  @UseInterceptors(PaginationInterceptor)
+  async search(
+    @AuthedUser() user: authedUserType,
+    @Query('q') q: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    console.log(`👤 ${user.email} (${user.role}) is searching universities with query: ${q}`);
+
+    const result = await this.universityService.search({
+      q: q || '',
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 10,
+    });
+
+    return {
+      success: true,
+      data: result.data,
+      meta: result.meta,
+    };
+  }
+
+
 
   @Patch(':id/activate')
   @Roles(UserRole.SUPER_ADMIN)

@@ -54,9 +54,10 @@ enum TrainingType {
 }
 
 enum AttendanceStatus {
-  PRESENT //* arrivalTime ≤ startTime + gracePeriod
-  ABSENT //* no check-in OR arrivalTime > lateLimit
-  LATE //* startTime + gracePeriod < arrivalTime ≤ lateLimit
+  CHECKED_IN
+  CHECKED_OUT
+  MARKED_PRESENT
+  MARKED_ABSENT
 }
 
 enum EvaluationType {
@@ -73,11 +74,51 @@ enum NotificationType {
   SYSTEM
 }
 
+enum DeviceType {
+  IOS
+  ANDROID
+  WEB
+}
+
+enum StatusType {
+  ONLINE
+  OFFLINE
+  AWAY
+  BUSY
+}
+
+enum UniversityAction {
+  CREATED
+  UPDATED
+  STATUS_CHANGED
+  DEACTIVATED
+  ACTIVATED
+}
+
+enum CompanyAction {
+  CREATED
+  UPDATED
+  STATUS_CHANGED
+  DEACTIVATED
+  ACTIVATED
+}
+
+enum UserAction {
+  LOGIN
+  LOGOUT
+  ONLINE
+  OFFLINE
+  AWAY
+  BUSY
+  PROFILE_UPDATED
+}
+
 // ! User Model
 
 model User {
   id                Int                          @id @default(autoincrement())
   email             String                       @unique
+  recoveryEmail     String?                       @unique
   password          String
   // fullName          String
   firstName         String
@@ -106,6 +147,8 @@ model User {
   university         University?         @relation(fields: [universityId], references: [id], onDelete: SetNull)
   company            Company?            @relation(fields: [companyId], references: [id], onDelete: SetNull)
   passwordResetCodes PasswordResetCode[]
+  userActivityLogs   UserActivityLog[]
+  userStatuses       UserStatus[]
 
   @@index([isActive])
   // to enable role filter
@@ -113,17 +156,42 @@ model User {
   @@index([role, isActive])
 }
 
+//! User Activity log model(tracker)
+
+model UserActivityLog {
+  id         Int        @id @default(autoincrement())
+  userId     Int
+  action     UserAction
+  ipAddress  String?
+  userAgent  String?
+  deviceInfo String?
+  createdAt  DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+//! User status model (for lastseen & online status)
+
+model UserStatus {
+  userId   Int        @id
+  status   StatusType @default(OFFLINE)
+  lastSeen DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 // ! Session Model
 
 model Session {
-  id               String    @id @default(cuid())
+  id               String      @id @default(cuid())
   userId           Int
   refreshTokenHash String
-  deviceInfo       String?
+  // deviceInfo       String?
+  deviceType       DeviceType?
   ipAddress        String?
   userAgent        String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
   expiresAt        DateTime
   revokedAt        DateTime?
   lastUsedAt       DateTime?
@@ -162,14 +230,30 @@ model University {
   phone       String?
   location    String?
   description String?
+  logo        String?
   isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())  
-  updatedAt   DateTime @default(now()) 
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
 
   users       User[]
   internships Internship[]
   students    StudentProfile[]
   supervisors UniversitySupervisorProfile[]
+  uditLogs    UniversityAuditLog[]
+}
+
+//! University log model(tracker)
+
+model UniversityAuditLog {
+  id           Int              @id @default(autoincrement())
+  universityId Int
+  action       UniversityAction
+  performedBy  Int // userId
+  oldValue     Json?
+  newValue     Json?
+  createdAt    DateTime         @default(now())
+
+  university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
 }
 
 // ! Company Model
@@ -182,12 +266,28 @@ model Company {
   phone       String?
   location    String?
   description String?
+  logo        String?
   isActive    Boolean @default(true)
 
   users         User[]
   internships   Internship[]
   trainers      CompanyTrainerProfile[]
   opportunities TrainingOpportunity[]
+  auditLogs     CompanyAuditLog[]
+}
+
+//! Company log model(tracker)
+
+model CompanyAuditLog {
+  id          Int           @id @default(autoincrement())
+  companyId   Int
+  action      CompanyAction
+  performedBy Int // userId
+  oldValue    Json?
+  newValue    Json?
+  createdAt   DateTime      @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 // ! Student Profile Model
@@ -195,7 +295,7 @@ model Company {
 model StudentProfile {
   userId               Int                   @id
   universityId         Int
-  studentNumber        Int
+  studentNumber        BigInt
   major                String?
   academicYear         Int?
   gpa                  Float?

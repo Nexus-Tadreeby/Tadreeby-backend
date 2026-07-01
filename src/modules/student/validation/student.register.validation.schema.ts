@@ -16,7 +16,9 @@ export const studentRegisterSchema = z.object({
     phone: phoneSchema,
     major: z.string().min(1),
     universityId: z.number().int(),
-    studentNumber: z.number().int(),
+    studentNumber: z.number().int()
+    .min(100000, 'Student number must be at least 6 digits')
+    .max(999999999999999, 'Student number must be at most 15 digits'),
     verificationDocument: z.string().min(1,'Varificatin document is required!'),
     personalID: z
         .number()

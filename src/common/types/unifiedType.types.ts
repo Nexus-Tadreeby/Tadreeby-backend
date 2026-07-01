@@ -1,8 +1,8 @@
 import { HttpStatus } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
-
+import { Prisma } from '@prisma/client';
 // ============================================
-// 📦 Basic Types
+//  Basic Types
 // ============================================
 
 export type objectType = Record<string, unknown>;
@@ -16,10 +16,11 @@ export type authedUserType = {
   universityId?: number | null;
   companyId?: number | null;
   isActive?: boolean;
+  sid?: string
 };
 
 // ============================================
-// 📄 Pagination Types
+//  Pagination Types
 // ============================================
 
 export type Params = {
@@ -48,7 +49,7 @@ export type PaginationResponseType = {
 };
 
 // ============================================
-// ✅ Success Response Types
+// Success Response Types
 // ============================================
 
 export type ApiSuccessResponse<T> = {
@@ -70,7 +71,7 @@ export type PaginationResult<T> = {
 };
 
 // ============================================
-// ❌ Error Response Types
+//  Error Response Types
 // ============================================
 
 export type ErrorField = {
@@ -93,7 +94,7 @@ export type ApiErrorResponse = {
 };
 
 // ============================================
-// 🔄 Unified Response Types
+//  Unified Response Types
 // ============================================
 
 export type UnifiedApiResponse<T> =
@@ -102,7 +103,7 @@ export type UnifiedApiResponse<T> =
   | ApiErrorResponse;
 
 // ============================================
-// 🛠️ Helper Functions for Responses
+//  Helper Functions for Responses
 // ============================================
 
 /**
@@ -154,7 +155,7 @@ export function errorResponse(
 }
 
 // ============================================
-// 📊 Common Response Types
+//  Common Response Types
 // ============================================
 ;
 
@@ -172,7 +173,7 @@ export type StatusResponse = {
 };
 
 // ============================================
-// 🔐 Auth Response Types
+//  Auth Response Types
 // ============================================
 
 export type AuthTokensResponse = {
@@ -181,7 +182,7 @@ export type AuthTokensResponse = {
   expiresIn?: number;
 };
 
-// ✅ Add these types at the end of the file or in the Auth section
+
 
 export type AuthUserResponse = {
   id: number;
@@ -195,7 +196,7 @@ export type AuthUserResponse = {
   universityId: number | null;
   companyId: number | null;
   isActive: boolean;
-  createdAt: Date;  // ✅ Change from string to Date
+  createdAt: Date;  
   studentProfile: {
     userId: number;
     universityId: number;
@@ -206,7 +207,7 @@ export type AuthUserResponse = {
     cvUrl: string | null;
     verificationDocument: string;
     approvalStatus: string;
-    approvedAt: Date | null;  // ✅ Change from string to Date | null
+    approvedAt: Date | null;  
     rejectionReason: string | null;
   } | null;
 };
@@ -246,13 +247,13 @@ export type MessageResponse = {
 
 
 // ============================================
-// 📋 Session Types
+//  Session Types
 // ============================================
 
 export type SessionResponse = {
   id: string;
-  deviceInfo: string | null;
-  ipAddress: string | null;
+  deviceInfo: string | null;  
+  deviceType: string | null;   
   userAgent: string | null;
   createdAt: Date;
   lastUsedAt: Date | null;
@@ -263,7 +264,7 @@ export type SessionResponse = {
 
 
 // ============================================
-// 📊 Dashboard Types
+//  Dashboard Types
 // ============================================
 
 export type DashboardStats = {
@@ -296,7 +297,7 @@ export type UniversityStatisticsResponse = {
 };
 
 // ============================================
-// 📈 Analytics Types
+//  Analytics Types
 // ============================================
 
 export type ChartDataPoint = {
@@ -325,7 +326,7 @@ export type ReportData = {
 };
 
 // ============================================
-// 🔧 Utility Types
+//  Utility Types
 // ============================================
 
 export type Paginated<T> = {
@@ -358,3 +359,19 @@ export type QueryOptions = {
   filters?: FilterOptions;
   includes?: string[];
 };
+
+
+
+
+export type UniversityWithCounts = Prisma.UniversityGetPayload<{
+  include: {
+    _count: {
+      select: {
+        users: true;
+        students: true;
+        supervisors: true;
+        internships: true;
+      };
+    };
+  };
+}>;

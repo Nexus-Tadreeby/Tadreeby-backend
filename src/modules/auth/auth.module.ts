@@ -9,6 +9,8 @@ import { StudentModule } from '../student/student.module';
 import { EmailModule } from '../mail/email.module';
 import { NotificationModule } from '../notification/notification.module';
 import { ForgetPasswordService } from './forget-password.service';
+import { DeviceDetectionService } from 'src/common/services/device-detection.service';
+import { UserStatusService } from 'src/common/services/UserStatus.service';
 
 @Module({
   imports: [
@@ -26,6 +28,12 @@ import { ForgetPasswordService } from './forget-password.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, ForgetPasswordService],
+  providers: [
+    AuthService, 
+    JwtStrategy, 
+    ForgetPasswordService, 
+    DeviceDetectionService, 
+    UserStatusService
+  ],
 })
 export class AuthModule { }

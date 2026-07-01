@@ -257,12 +257,12 @@ export class AuthController {
     @Post("logout")
     @ApiOperation({ summary: "Logout (invalidate session)" })
     @ApiResponse({ status: 200, type: LogoutResponseDto })
-    logout(
+    async logout(
         @AuthedUser() user: authedUserType,
-        @Body(new ZodValidationPipe(logoutSchema))
-        dto: LogoutSchemaDto,
+        // @Body(new ZodValidationPipe(logoutSchema))
+        // dto: LogoutSchemaDto,
     ) {
-        return this.authService.logout(dto);
+        return await this.authService.logout(user.id, user.sid);
     }
 
 

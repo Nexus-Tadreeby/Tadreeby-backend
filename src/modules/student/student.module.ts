@@ -6,10 +6,13 @@ import { EmailService } from '../mail/email.service';
 import { NotificationService } from '../notification/notification.service';
 import { StudentEventsListener } from './listeners/student.events.listener';
 import { StudentAdminController } from './admin.controller';
+// import { StudentValidationController } from './student-validation.controller';
 
 @Module({
   imports: [DatabaseModule],
-  controllers: [StudentController, StudentAdminController],
+  controllers: [StudentController, StudentAdminController , 
+    //StudentValidationController
+    ],
   providers: [
     StudentService,
     EmailService,

@@ -1,14 +1,21 @@
 import { emailSchema, nameSchema, phoneSchema } from "src/common/utils/zod.helper";
 import { z } from "zod";
+import { UpdateUniversityDto } from "../dto/update-university.dto";
 
 export const updateUniversitySchema =
     z.object({
-        name: nameSchema,
+        name: z
+            .string()
+            .trim()
+            .min(2, 'Name must be at least 2 characters')
+            .max(50, 'Name is too long')
+            .optional(),
+
         shortCode: z
             .string()
             .trim()
-            .min(2)
-            .max(20)
+            .min(2, 'Short code must be at least 2 characters')
+            .max(10, 'Short code is too long')
             .optional(),
         email:emailSchema.optional(),
         phone: phoneSchema.optional(),
@@ -23,10 +30,14 @@ export const updateUniversitySchema =
             .max(1000)
             .optional(),
 
+        logo: z.string()
+            .trim()
+            .optional(),
+
         isActive: z.boolean().optional(),
 
     }).refine(data => Object.keys(data).length > 0, {
         message: 'At least one field must be provided for update',
-    });
+    })  satisfies z.ZodType<UpdateUniversityDto>;
 
 export type UpdateUniversitySchemaDto =z.infer<typeof updateUniversitySchema>;

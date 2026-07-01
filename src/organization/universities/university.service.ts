@@ -1,14 +1,15 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 import { DatabaseService } from 'src/database/database.service';
 import { CreateUniversitySchemaDto } from './validation/create-university.validation';
 import { UpdateUniversitySchemaDto } from './validation/update-university.validation';
 import { UniversityQueryType } from './validation/university-query.validation';
-import { PaginationResult } from 'src/common/types/unifiedType.types';
+import { authedUserType, PaginationResult, UniversityWithCounts } from 'src/common/types/unifiedType.types';
 
 @Injectable()
 export class UniversityService {
@@ -32,7 +33,13 @@ export class UniversityService {
     });
   }
 
-  async findAll(query: UniversityQueryType): Promise<PaginationResult<any>> {
+
+
+
+
+
+
+  async findAll(query: UniversityQueryType): Promise<PaginationResult<UniversityWithCounts>> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
     const {
@@ -104,7 +111,7 @@ export class UniversityService {
 
       const totalPages = Math.ceil(total / limit);
 
-      // ✅ Add hasNextPage and hasPreviousPage
+      // Add hasNextPage and hasPreviousPage
       return {
         data,
         meta: {
@@ -123,6 +130,11 @@ export class UniversityService {
       throw error;
     }
   }
+
+
+
+
+
 
   async findOne(id: number) {
     const university = await this.prisma.university.findUnique({
@@ -146,9 +158,20 @@ export class UniversityService {
     return university;
   }
 
-  async update(id: number, dto: UpdateUniversitySchemaDto) {
+  async update(id: number, dto: UpdateUniversitySchemaDto, currentUser: authedUserType) {
     await this.findOne(id);
 
+
+    if (currentUser.role === UserRole.UNIVERSITY_ADMIN) {
+      //to ensure the UNI ADMIN updates his own university
+        if (currentUser.universityId !== id) {
+        throw new ForbiddenException('You can only update your own university');
+      }
+      delete dto.name;
+      delete dto.shortCode;
+    }
+
+    
     if (dto.shortCode || dto.name) {
       const exists = await this.prisma.university.findFirst({
         where: {
@@ -177,6 +200,12 @@ export class UniversityService {
       data: dto,
     });
   }
+
+
+
+
+
+
 
   async deactivate(id: number) {
     await this.findOne(id);
@@ -272,4 +301,65 @@ export class UniversityService {
       internshipStatuses,
     };
   }
+
+
+
+  async search(query: { q: string; page?: number; limit?: number }): Promise<PaginationResult<UniversityWithCounts>> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const { q } = query;
+
+    const where: Prisma.UniversityWhereInput = {};
+
+    if (q && q.trim()) {
+      const searchTerm = q.trim();
+      where.OR = [
+        { name: { contains: searchTerm, mode: 'insensitive' } },
+        { shortCode: { contains: searchTerm, mode: 'insensitive' } },
+        { email: { contains: searchTerm, mode: 'insensitive' } },
+        { description: { contains: searchTerm, mode: 'insensitive' } },
+      ];
+    }
+
+    const skip = (page - 1) * limit;
+    const take = limit;
+
+    const [data, total] = await Promise.all([
+      this.prisma.university.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { name: 'asc' },
+        include: {
+          _count: {
+            select: {
+              users: true,
+              students: true,
+              supervisors: true,
+              internships: true,
+            },
+          },
+        },
+      }),
+      this.prisma.university.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    };
+  }
+
+  
 }
+
+
