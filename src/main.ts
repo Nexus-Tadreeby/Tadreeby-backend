@@ -14,6 +14,7 @@ async function bootstrap() {
     'http://localhost:3000',
     'http://localhost:5173',
     'https://tadreeby.vercel.app',
+    'https://tadreeby-backend-production.up.railway.app/api'
   ];
 
   const allowedOrigins = process.env.ALLOWED_ORIGINS
