@@ -53,8 +53,8 @@ async function bootstrap() {
 
   try {
     const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('docs', app, document);
-    console.log('✅ Swagger enabled successfully at /docs');
+    SwaggerModule.setup('api', app, document);
+    console.log('✅ Swagger enabled successfully at /api');
   } catch (error) {
     console.error('❌ Swagger setup failed:', error instanceof Error ? error.message : String(error));
   }
