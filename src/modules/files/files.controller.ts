@@ -25,34 +25,13 @@ import { UserRole } from '@prisma/client';
 
 import { FilesService, FileType } from './files.service';
 import { ApiSuccessResponse, MessageResponse } from 'src/common/types/unifiedType.types';
+import { profileImageMulterConfig, cvMulterConfig, verificationDocMulterConfig, taskFileMulterConfig } from 'src/common/config/multer.config';
 
-// ✅ Multer options with 10MB limit
-const multerOptions = {
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
-  },
-  fileFilter: (req: any, file: Express.Multer.File, cb: any) => {
-    const allowedTypes = [
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'image/svg+xml',
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'text/plain',
-    ];
 
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new BadRequestException('Invalid file type'), false);
-    }
-  },
-};
+const profileImageOptions = { ...profileImageMulterConfig };
+const cvOptions = { ...cvMulterConfig };
+const verificationDocOptions = { ...verificationDocMulterConfig };
+const taskFileOptions = { ...taskFileMulterConfig };
 
 @ApiTags('Files')
 @ApiBearerAuth()
@@ -61,14 +40,12 @@ const multerOptions = {
 export class FilesController {
   constructor(private readonly filesService: FilesService) { }
 
-  // ============================================
-  // ✅ UPLOAD PROFILE IMAGE
-  // ============================================
+
 
   @Post('profile')
   @Roles([UserRole.STUDENT, UserRole.UNIVERSITY_ADMIN, UserRole.COMPANY_ADMIN, UserRole.UNIVERSITY_SUPERVISOR, UserRole.COMPANY_TRAINER])
-  @UseInterceptors(FileInterceptor('file', multerOptions))
-  @ApiOperation({ summary: 'Upload profile image (max 10MB)' })
+  @UseInterceptors(FileInterceptor('file', profileImageOptions))
+  @ApiOperation({ summary: 'Upload profile image (max 5MB)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -77,7 +54,7 @@ export class FilesController {
         file: {
           type: 'string',
           format: 'binary',
-          description: 'Image file (JPEG, PNG, GIF, WEBP) - Max 10MB',
+          description: 'Image file (JPEG, PNG, GIF, WEBP) - Max 5MB',
         },
       },
     },
@@ -89,7 +66,7 @@ export class FilesController {
         success: true,
         data: {
           filename: '1732456789123-abc123.jpg',
-          url: 'http://localhost:3000/api/v1/files/profile/1/1732456789123-abc123.jpg',
+          url: 'http://localhost:3000/files/profile/1/1732456789123-abc123.jpg',
           message: 'Profile image uploaded successfully',
         },
       },
@@ -104,7 +81,7 @@ export class FilesController {
     }
 
     await this.filesService.deleteFile(FileType.PROFILE, user.id);
-    const result = await this.filesService.uploadFile(file, FileType.PROFILE, user.id);
+    const result = await this.filesService.uploadFile(file, FileType.PROFILE, user.id, user.firstName, user.lastName);
 
     return {
       success: true,
@@ -116,14 +93,14 @@ export class FilesController {
     };
   }
 
-  // ============================================
-  // ✅ UPLOAD CV
-  // ============================================
+
+  
+
 
   @Post('cv')
   @Roles([UserRole.STUDENT])
-  @UseInterceptors(FileInterceptor('file', multerOptions))
-  @ApiOperation({ summary: 'Upload CV (max 10MB)' })
+  @UseInterceptors(FileInterceptor('file', cvOptions))
+  @ApiOperation({ summary: 'Upload CV (max 5MB)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -132,7 +109,7 @@ export class FilesController {
         file: {
           type: 'string',
           format: 'binary',
-          description: 'PDF or Word document - Max 10MB',
+          description: 'PDF or Word document - Max 5MB',
         },
       },
     },
@@ -144,7 +121,7 @@ export class FilesController {
         success: true,
         data: {
           filename: '1732456789123-abc123.pdf',
-          url: 'http://localhost:3000/api/v1/files/cv/1/1732456789123-abc123.pdf',
+          url: 'http://localhost:3000/files/cv/1/1732456789123-abc123.pdf',
           message: 'CV uploaded successfully',
         },
       },
@@ -159,7 +136,7 @@ export class FilesController {
     }
 
     await this.filesService.deleteFile(FileType.CV, user.id);
-    const result = await this.filesService.uploadFile(file, FileType.CV, user.id);
+    const result = await this.filesService.uploadFile(file, FileType.CV, user.id, user.firstName, user.lastName);
 
     return {
       success: true,
@@ -171,14 +148,14 @@ export class FilesController {
     };
   }
 
-  // ============================================
-  // ✅ UPLOAD VERIFICATION DOCUMENT
-  // ============================================
+  
+
+
 
   @Post('verification')
   @Roles([UserRole.STUDENT])
-  @UseInterceptors(FileInterceptor('file', multerOptions))
-  @ApiOperation({ summary: 'Upload verification document (max 10MB)' })
+  @UseInterceptors(FileInterceptor('file', verificationDocOptions))
+  @ApiOperation({ summary: 'Upload verification document (max 5MB)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -187,7 +164,7 @@ export class FilesController {
         file: {
           type: 'string',
           format: 'binary',
-          description: 'PDF or image of verification document - Max 10MB',
+          description: 'PDF or image of verification document - Max 5MB',
         },
       },
     },
@@ -199,7 +176,7 @@ export class FilesController {
         success: true,
         data: {
           filename: '1732456789123-abc123.pdf',
-          url: 'http://localhost:3000/api/v1/files/verification/1/1732456789123-abc123.pdf',
+          url: 'http://localhost:3000/files/verification/1/1732456789123-abc123.pdf',
           message: 'Verification document uploaded successfully',
         },
       },
@@ -214,7 +191,7 @@ export class FilesController {
     }
 
     await this.filesService.deleteFile(FileType.VERIFICATION, user.id);
-    const result = await this.filesService.uploadFile(file, FileType.VERIFICATION, user.id);
+    const result = await this.filesService.uploadFile(file, FileType.VERIFICATION, user.id, user.firstName, user.lastName);
 
     return {
       success: true,
@@ -226,9 +203,11 @@ export class FilesController {
     };
   }
 
-  // ============================================
-  // ✅ DELETE PROFILE IMAGE
-  // ============================================
+
+
+
+  
+
 
   @Delete('profile')
   @Roles([UserRole.STUDENT, UserRole.UNIVERSITY_ADMIN, UserRole.COMPANY_ADMIN, UserRole.UNIVERSITY_SUPERVISOR, UserRole.COMPANY_TRAINER])
@@ -256,9 +235,8 @@ export class FilesController {
     };
   }
 
-  // ============================================
-  // ✅ DELETE CV
-  // ============================================
+
+  
 
   @Delete('cv')
   @Roles(UserRole.STUDENT)
@@ -286,9 +264,8 @@ export class FilesController {
     };
   }
 
-  // ============================================
-  // ✅ DELETE VERIFICATION DOCUMENT
-  // ============================================
+  
+
 
   @Delete('verification')
   @Roles(UserRole.STUDENT)
@@ -316,9 +293,8 @@ export class FilesController {
     };
   }
 
-  // ============================================
-  // ✅ GET FILE (Public)
-  // ============================================
+  
+
 
   @Get(':type/:userId/:filename')
   @ApiOperation({ summary: 'Get file' })
@@ -343,6 +319,9 @@ export class FilesController {
 
     return new StreamableFile(fileStream);
   }
+
+
+
 
   private getContentType(filename: string): string {
     const ext = path.extname(filename).toLowerCase();

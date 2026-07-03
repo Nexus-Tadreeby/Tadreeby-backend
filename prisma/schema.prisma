@@ -118,7 +118,7 @@ enum UserAction {
 model User {
   id                Int                          @id @default(autoincrement())
   email             String                       @unique
-  recoveryEmail     String?                       @unique
+  recoveryEmail     String?                      @unique
   password          String
   // fullName          String
   firstName         String
@@ -305,6 +305,7 @@ model StudentProfile {
   approvalStatus       StudentApprovalStatus @default(PENDING)
   approvedAt           DateTime?
   rejectionReason      String?
+  skills               String?
 
   internships     InternshipStudent[]
   attendance      Attendance[]
@@ -403,6 +404,7 @@ model InternshipStudent {
   id           Int @id @default(autoincrement())
   internshipId Int
   studentId    Int
+  createdAt    DateTime @default(now())
 
   internship Internship     @relation(fields: [internshipId], references: [id], onDelete: Cascade)
   student    StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)

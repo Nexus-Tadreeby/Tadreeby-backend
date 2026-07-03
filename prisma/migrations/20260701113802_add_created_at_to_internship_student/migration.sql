@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "InternshipStudent" ADD COLUMN     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

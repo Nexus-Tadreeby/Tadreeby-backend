@@ -14,7 +14,7 @@ async function bootstrap() {
   //   'http://localhost:3000',
   //   'http://localhost:5173',
   //   'https://tadreeby.vercel.app',
-  //   'https://tadreeby-backend-production.up.railway.app'
+  //   'https://tadreeby-backend-production.up.railway.app/api'
   // ];
 
   // const allowedOrigins = process.env.ALLOWED_ORIGINS
@@ -37,7 +37,7 @@ async function bootstrap() {
   // });
 
   app.enableCors({
-    origin: true, // 👈 هذا السطر هو التغيير الرئيسي
+    origin: true, 
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
@@ -54,9 +54,9 @@ async function bootstrap() {
   try {
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api', app, document);
-    console.log('✅ Swagger enabled successfully at /api');
+    console.log(' Swagger enabled successfully at /api');
   } catch (error) {
-    console.error('❌ Swagger setup failed:', error instanceof Error ? error.message : String(error));
+    console.error('Swagger setup failed:', error instanceof Error ? error.message : String(error));
   }
 
   // const document = SwaggerModule.createDocument(app, config);

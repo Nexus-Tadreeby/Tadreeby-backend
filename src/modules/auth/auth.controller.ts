@@ -14,13 +14,13 @@ import {
     UploadedFile,
 } from "@nestjs/common";
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-
+import * as fs from 'fs';
+import * as path from 'path';
 
 import express from "express";
 
 import { AuthService } from "./auth.service";
+import { generateFileName, FileTypeLabel } from "../../common/utils/file-naming.util";
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 
 import { studentRegisterSchema, type studentRegisterSchemaDto } from "../student/validation/student.register.validation.schema";
@@ -52,18 +52,19 @@ import { FileValidationInterceptor } from "../../common/interceptors/file-valida
 export class AuthController {
     constructor(
         private readonly authService: AuthService,
-                private readonly forgotPasswordService: ForgetPasswordService,
+        private readonly forgotPasswordService: ForgetPasswordService,
 
     ) { }
 
 
     @IsPublic()
     @Post('register/student')
-    @ApiOperation({ summary: 'Student registration with base64 document' })
+    @ApiOperation({ summary: 'Student registration with verification document upload' })
+    @ApiConsumes('multipart/form-data')
     @ApiBody({
         schema: {
             type: 'object',
-            required: ['email', 'firstName', 'lastName', 'personalID', 'password', 'universityId', 'studentNumber', 'verificationDocument'],
+            required: ['email', 'firstName', 'lastName', 'personalID', 'password', 'confirmPassword', 'universityId', 'studentNumber', 'verificationDocument'],
             properties: {
                 email: { type: 'string', example: 'student@university.edu' },
                 firstName: { type: 'string', example: 'Shahd' },
@@ -71,24 +72,55 @@ export class AuthController {
                 personalID: { type: 'number', example: 123456789 },
                 phone: { type: 'string', example: '0592246851' },
                 password: { type: 'string', example: 'S3cure@Tadreeby2026' },
+                confirmPassword: { type: 'string', example: 'S3cure@Tadreeby2026' },
                 universityId: { type: 'number', example: 1 },
                 studentNumber: { type: 'number', example: 20200970 },
                 major: { type: 'string', example: 'Software Engineering' },
                 verificationDocument: {
                     type: 'string',
-                    description: 'Base64 encoded file (PDF, JPG, PNG)',
-                    example: 'data:application/pdf;base64,JVBERi0xLjQK...',
+                    format: 'binary',
+                    description: 'Proof of university enrollment (PDF, JPG, PNG) - Maximum size 10 MB',
                 },
             },
         },
     })
     @ApiResponse({ status: 201, description: 'Student registered successfully' })
     @ApiResponse({ status: 400, description: 'Validation error' })
+    @UseInterceptors(
+        FileInterceptor('verificationDocument', multerConfig),
+        FileValidationInterceptor,
+    )
     async register(
-        @Body(new ZodValidationPipe(studentRegisterSchema)) dto: studentRegisterSchemaDto,
+        @Body() body: any,
+        @UploadedFile() file: Express.Multer.File,
         @Req() req: express.Request,
     ) {
-        const { confirmPassword, ...cleanDto } = dto;
+        if (!file) {
+            throw new BadRequestException('Verification document is required');
+        }
+
+        // Generate new filename with student name + file type
+        const newFilename = generateFileName(
+            body.firstName,
+            body.lastName,
+            FileTypeLabel.VERIFICATION,
+            file.originalname,
+        );
+
+        // Rename the uploaded file
+        const uploadDir = process.env.UPLOAD_PATH || './uploads/pending';
+        const oldPath = path.join(uploadDir, file.filename);
+        const newPath = path.join(uploadDir, newFilename);
+        fs.renameSync(oldPath, newPath);
+
+        const dtoData = {
+            ...body,
+            verificationDocument: newFilename,
+        };
+
+        const validatedDto = studentRegisterSchema.parse(dtoData);
+        const { confirmPassword, ...cleanDto } = validatedDto;
+
         return this.authService.registerStudent(cleanDto, req);
     }
 
@@ -134,12 +166,12 @@ export class AuthController {
     //     @UploadedFile() file: Express.Multer.File, 
     //     @Req() req: express.Request,
     // ) {
-        
+
     //     if (!file) {
     //         throw new BadRequestException('Verification document is required');
     //     }
 
-    
+
     //     const dtoData = {
     //         ...body,
     //         verificationDocument: file.filename,  
@@ -147,10 +179,10 @@ export class AuthController {
 
     //     const validatedDto = studentRegisterSchema.parse(dtoData);
 
-      
+
     //     return this.authService.registerStudent(validatedDto, req);
     // }
-    
+
     // @IsPublic()
     // @Post("register/student")
     // @ApiOperation({ summary: 'Student registration with document upload' })

@@ -10,12 +10,18 @@ if (!fs.existsSync(uploadPath)) {
     fs.mkdirSync(uploadPath, { recursive: true });
 }
 
+// 5MB limit for verification documents, profile images, and logos
+const SMALL_FILE_LIMIT = 5 * 1024 * 1024;
+
+// 10MB limit for task files
+const LARGE_FILE_LIMIT = 10 * 1024 * 1024;
+
 export const multerConfig = {
     storage: diskStorage({
         destination: (req, file, callback) => {
-         
+
             const path = process.env.UPLOAD_PATH || './uploads/pending';
-       
+
             if (!fs.existsSync(path)) {
                 fs.mkdirSync(path, { recursive: true });
             }
@@ -29,7 +35,7 @@ export const multerConfig = {
         },
     }),
     limits: {
-        fileSize: 10 * 1024 * 1024, 
+        fileSize: SMALL_FILE_LIMIT, // 5MB for registration verification documents
     },
     fileFilter: (req, file, callback) => {
         const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -52,5 +58,40 @@ export const multerConfig = {
         }
 
         callback(null, true);
+    },
+};
+
+// Multer config for profile image uploads (5MB limit)
+export const profileImageMulterConfig = {
+    limits: {
+        fileSize: SMALL_FILE_LIMIT, // 5MB
+    },
+};
+
+// Multer config for CV uploads (5MB limit)
+export const cvMulterConfig = {
+    limits: {
+        fileSize: SMALL_FILE_LIMIT, // 5MB
+    },
+};
+
+// Multer config for verification document uploads (5MB limit)
+export const verificationDocMulterConfig = {
+    limits: {
+        fileSize: SMALL_FILE_LIMIT, // 5MB
+    },
+};
+
+// Multer config for task file uploads (10MB limit)
+export const taskFileMulterConfig = {
+    limits: {
+        fileSize: LARGE_FILE_LIMIT, // 10MB
+    },
+};
+
+// Multer config for logo uploads (5MB limit)
+export const logoMulterConfig = {
+    limits: {
+        fileSize: SMALL_FILE_LIMIT, // 5MB
     },
 };
