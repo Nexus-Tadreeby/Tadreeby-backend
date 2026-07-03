@@ -1,14 +1,13 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { RegisterStudentDto } from './dto/register-student.dto';
-import { StudentApprovalStatus, UserRole } from '@prisma/client';
+import { AttendanceStatus, InternshipStatus, StudentApprovalStatus, TaskStatus, UserRole } from '@prisma/client';
 import { StudentRegisteredEvent } from './events/student-registered.event';
 import { hashPassword } from '../auth/utils/crypto.util';
 import { removeFields } from '../../common/utils/object.util';
 import { AuthUserResponse } from 'src/common/types/unifiedType.types';
-import * as fs from 'fs';
-import * as path from 'path';
+import { UpdateStudentProfileDto } from './dto/update-student-profile.dto';
 
 @Injectable()
 export class StudentService {
@@ -32,36 +31,7 @@ export class StudentService {
 
     const hashedPassword = await hashPassword(dto.password);
 
-    let verificationFileName = '' 
-    if (dto.verificationDocument) {
-      try {
-
-        const base64Data = dto.verificationDocument.replace(/^data:.*?;base64,/, '');
-        const buffer = Buffer.from(base64Data, 'base64');
-
-      
-        const ext = this.getFileExtension(dto.verificationDocument);
-
-        const baseName = this.generateVerificationFileName(dto.firstName, dto.lastName);
-        const filename = `${baseName}${ext}`;
-        // const filename = `verification-${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
-
-        const uploadDir = process.env.UPLOAD_PATH || './uploads/pending';
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
-
-        const filePath = path.join(uploadDir, filename);
-        // fs.writeFileSync(filePath, buffer);
-        await fs.promises.writeFile(filePath, buffer);
-
-        verificationFileName = filename; 
-        console.log(`✅ File saved: ${filePath}`);
-      } catch (error) {
-        console.error('❌ Error saving verification document:', error);
-        throw new ConflictException('Failed to save verification document');
-      }
-    }
+    const verificationFileName = dto.verificationDocument || '';
 
     //! try & catch
 
@@ -86,7 +56,7 @@ export class StudentService {
           userId: user.id,
           universityId: dto.universityId,
           studentNumber: BigInt(dto.studentNumber),
-          major : dto.major,
+          major: dto.major,
           // verificationDocument: dto.verificationDocument,
           verificationDocument: verificationFileName,
           approvalStatus: StudentApprovalStatus.PENDING,
@@ -145,58 +115,184 @@ export class StudentService {
 
   }
 
-  private getFileExtension(base64: string): string {
-    if (base64.includes('data:image/png')) return '.png';
-    if (base64.includes('data:image/jpeg') || base64.includes('data:image/jpg'))
-      return '.jpg';
-    if (base64.includes('data:image/gif')) return '.gif';
-    if (base64.includes('data:image/webp')) return '.webp';
-    if (base64.includes('data:application/pdf')) return '.pdf';
-    return '.pdf';
-  }
 
-  
-  private async ensurePersonalIdNotUsed(personalID: number ): Promise<void> {
-    const existingUser = await this.prisma.user.findUnique({
-      where: { personalID },
+
+
+
+
+
+  async getProfile(userId: number) {
+    const profile = await this.prisma.studentProfile.findUnique({
+      where: { userId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            profileImage: true,
+            recoveryEmail: true,
+            createdAt: true,
+          },
+        },
+        university: {
+          select: {
+            id: true,
+            name: true,
+            shortCode: true,
+          },
+        },
+      },
     });
 
-    if (existingUser) {
-      throw new ConflictException('Personal ID already exists');
+    if (!profile) throw new NotFoundException('Student profile not found');
+    return profile;
+  }
+
+
+
+
+
+  async updateProfile(userId: number, dto: UpdateStudentProfileDto) {
+    const profile = await this.prisma.studentProfile.findUnique({
+      where: { userId },
+    });
+    if (!profile) throw new NotFoundException('Student profile not found');
+
+    if (dto.firstName || dto.lastName || dto.phone) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          phone: dto.phone,
+        },
+      });
     }
+
+    return this.prisma.studentProfile.update({
+      where: { userId },
+      data: {
+        major: dto.major,
+        academicYear: dto.academicYear,
+        gpa: dto.gpa,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            profileImage: true,
+          },
+        },
+      },
+    });
   }
 
-  normalizeEmail(email: string) {
-    return email.trim().toLowerCase();
+
+
+
+
+
+
+  async getSkills(userId: number): Promise<string[]> {
+    const profile = await this.prisma.studentProfile.findUnique({
+      where: { userId },
+      select: { skills: true },
+    });
+    if (!profile) throw new NotFoundException('Student profile not found');
+    return profile.skills ? JSON.parse(profile.skills) : [];
   }
 
 
-  private async ensureEmailNotUsed(email: string) {
-    const db = this.prisma;
 
-    const existing = await db.user.findUnique({ where: { email } });
-    if (existing) throw new ConflictException('Email already in use');
+
+  async updateSkills(userId: number, skills: string[]): Promise<string[]> {
+    if (!Array.isArray(skills)) {
+      throw new BadRequestException('Skills must be an array of strings');
+    }
+    const cleanedSkills = skills
+      .map(s => this.normalizeSkill(s))
+      .filter(s => s.length > 0)
+      .filter((s, i, arr) => arr.indexOf(s) === i);
+    if (cleanedSkills.length === 0) {
+      throw new BadRequestException('At least one skill is required');
+    }
+    await this.prisma.studentProfile.update({
+      where: { userId },
+      data: { skills: JSON.stringify(cleanedSkills) },
+    });
+    return cleanedSkills;
   }
 
 
-  // findAll() {
-  //   return `This action returns all student`;
-  // }
 
-  // findOne(id: number) {
-  //   return `This action returns a #${id} student`;
-  // }
 
-  // update(id: number, updateStudentDto: UpdateStudentDto) {
-  //   return `This action updates a #${id} student`;
-  // }
+  async addSkill(userId: number, skill: string): Promise<string[]> {
+    const currentSkills = await this.getSkills(userId);
+    const normalized = this.normalizeSkill(skill);
+    if (!normalized) throw new BadRequestException('Invalid skill');
+    if (currentSkills.includes(normalized)) {
+      throw new BadRequestException('Skill already exists');
+    }
+    const updated = [...currentSkills, normalized];
+    await this.prisma.studentProfile.update({
+      where: { userId },
+      data: { skills: JSON.stringify(updated) },
+    });
+    return updated;
+  }
 
-  // remove(id: number) {
-  //   return `This action removes a #${id} student`;
-  // }
-  // remove(id: number) {
-  //   return `This action removes a #${id} student`;
-  // }
+
+
+
+  async removeSkill(userId: number, skill: string): Promise<string[]> {
+    const currentSkills = await this.getSkills(userId);
+    const normalized = this.normalizeSkill(skill);
+    if (!currentSkills.includes(normalized)) {
+      throw new NotFoundException('Skill not found');
+    }
+    const updated = currentSkills.filter(s => s !== normalized);
+    await this.prisma.studentProfile.update({
+      where: { userId },
+      data: { skills: JSON.stringify(updated) },
+    });
+    return updated;
+  }
+
+
+
+  async getSuggestedSkills(): Promise<string[]> {
+    const opportunities = await this.prisma.trainingOpportunity.findMany({
+      where: { isActive: true },
+      select: { requiredSkills: true },
+    });
+    const skillSet = new Set<string>();
+    opportunities.forEach(opp => {
+      if (opp.requiredSkills) {
+        opp.requiredSkills.split(',').forEach(s => {
+          const normalized = this.normalizeSkill(s);
+          if (normalized) skillSet.add(normalized);
+        });
+      }
+    });
+    return Array.from(skillSet).sort();
+  }
+
+
+
+  private normalizeSkill(skill: string): string {
+    return skill.trim().toLowerCase().replace(/\s+/g, ' ').replace(/[^a-z0-9\s#+.]/g, '');
+  }
+
+
+
+
 
   async reuploadDocument(userId: number, verificationDocument: string) {
     const profile = await this.prisma.studentProfile.findUnique({ where: { userId } });
@@ -230,12 +326,435 @@ export class StudentService {
 
 
 
+
+
+  async getInternships(userId: number) {
+    return this.prisma.internshipStudent.findMany({
+      where: { studentId: userId },
+      include: {
+        internship: {
+          include: {
+            opportunity: true,
+            company: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+
+  async applyForOpportunity(userId: number, opportunityId: number) {
+
+    const opportunity = await this.prisma.trainingOpportunity.findUnique({
+      where: { id: opportunityId, isActive: true },
+    });
+
+    if (!opportunity) throw new NotFoundException('Opportunity not found');
+
+    const existing = await this.prisma.internshipStudent.findFirst({
+      where: {
+        studentId: userId,
+        internship: {
+          opportunityId,
+        },
+      },
+    });
+
+    if (existing) throw new ConflictException('Already applied for this opportunity');
+
+    // Get student's university
+    const student = await this.prisma.studentProfile.findUnique({
+      where: { userId },
+      select: { universityId: true },
+    });
+
+    if (!student) throw new NotFoundException('Student profile not found');
+
+    const internship = await this.prisma.internship.create({
+      data: {
+        opportunityId,
+        companyId: opportunity.companyId,
+        universityId: student.universityId,
+        status: InternshipStatus.ACTIVE,
+      },
+    });
+
+    return this.prisma.internshipStudent.create({
+      data: {
+        studentId: userId,
+        internshipId: internship.id,
+      },
+      include: {
+        internship: {
+          include: {
+            opportunity: true,
+            company: true,
+          },
+        },
+      },
+    });
+  }
+
+
+
+  async getTasks(userId: number) {
+    return this.prisma.task.findMany({
+      where: {
+        internship: {
+          students: {
+            some: {
+              studentId: userId,
+            },
+          },
+        },
+      },
+      include: {
+        submissions: {
+          where: { studentId: userId },
+        },
+      },
+      orderBy: { deadline: 'asc' },
+    });
+  }
+
+
+
+  async getAttendance(userId: number) {
+    return this.prisma.attendance.findMany({
+      where: { studentId: userId },
+      include: {
+        internship: {
+          include: {
+            opportunity: true,
+            company: true,
+          },
+        },
+      },
+      orderBy: { date: 'desc' },
+    });
+  }
+
+
+
+
+  async checkIn(userId: number, internshipId: number) {
+    // Check if student is enrolled in this internship
+    const enrolled = await this.prisma.internshipStudent.findFirst({
+      where: {
+        studentId: userId,
+        internshipId,
+      },
+    });
+
+    if (!enrolled) throw new ForbiddenException('You are not enrolled in this internship');
+
+    // Check if already checked in today
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+    const existing = await this.prisma.attendance.findFirst({
+      where: {
+        internshipId,
+        studentId: userId,
+        date: { gte: startOfDay, lt: endOfDay },
+      },
+    });
+
+    if (existing) throw new ConflictException('Already checked in today');
+
+    return this.prisma.attendance.create({
+      data: {
+        internshipId,
+        studentId: userId,
+        date: new Date(),
+        status: AttendanceStatus.CHECKED_IN,
+      },
+      include: {
+        internship: {
+          include: {
+            opportunity: true,
+            company: true,
+          },
+        },
+      },
+    });
+  }
+
+
+
+
+
+  async getEvaluations(userId: number) {
+    return this.prisma.evaluation.findMany({
+      where: { studentId: userId },
+      include: {
+        evaluator: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+          },
+        },
+        internship: {
+          include: {
+            opportunity: true,
+            company: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+
+
+
+  async getDashboard(userId: number) {
+    const [profile, internships, tasks, attendance, evaluations] = await Promise.all([
+      this.getProfile(userId),
+      this.getInternships(userId),
+      this.getTasks(userId),
+      this.getAttendance(userId),
+      this.getEvaluations(userId),
+      this.getActivityFeed(userId),
+    ]);
+
+    // Calculate stats
+    const stats = {
+      totalInternships: internships.length,
+      totalTasks: tasks.length,
+      totalAttendance: attendance.length,
+      totalEvaluations: evaluations.length,
+      pendingTasks: tasks.filter(t => t.status === TaskStatus.TODO).length,
+      inProgressTasks: tasks.filter(t => t.status === TaskStatus.IN_PROGRESS).length,
+      completedTasks: tasks.filter(t => t.status === TaskStatus.DONE).length,
+      todayAttendance: attendance.filter(a => {
+        const today = new Date();
+        return a.date.getDate() === today.getDate() &&
+          a.date.getMonth() === today.getMonth() &&
+          a.date.getFullYear() === today.getFullYear();
+      }).length,
+      averageScore: evaluations.reduce((acc, e) => acc + (e.score || 0), 0) / (evaluations.length || 1),
+    };
+
+    return {
+      profile,
+      internships,
+      tasks,
+      attendance,
+      evaluations,
+      stats,
+    };
+  }
+
+
+
+  async getInternshipDetails(userId: number, internshipId: number) {
+    // 1. التحقق من أن الطالب مسجل في هذا التدريب
+    const enrolled = await this.prisma.internshipStudent.findFirst({
+      where: {
+        studentId: userId,
+        internshipId,
+      },
+    });
+
+    if (!enrolled) throw new ForbiddenException('You are not enrolled in this internship');
+
+    // 2. جلب تفاصيل التدريب
+    const internship = await this.prisma.internship.findUnique({
+      where: { id: internshipId },
+      include: {
+        opportunity: true,
+        company: true,
+        university: true,
+        trainer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            profileImage: true,
+          },
+        },
+        supervisor: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            profileImage: true,
+          },
+        },
+        tasks: {
+          include: {
+            submissions: {
+              where: { studentId: userId },
+            },
+          },
+          orderBy: { deadline: 'asc' },
+        },
+        attendance: {
+          where: { studentId: userId },
+          orderBy: { date: 'desc' },
+        },
+        evaluations: {
+          where: { studentId: userId },
+          include: {
+            evaluator: {
+              select: {
+                firstName: true,
+                lastName: true,
+                role: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!internship) throw new NotFoundException('Internship not found');
+
+    // 3. حساب الإحصائيات
+    const totalTasks = internship.tasks.length;
+    const completedTasks = internship.tasks.filter(t => t.status === TaskStatus.DONE).length;
+    const attendanceCount = internship.attendance.length;
+    const presentCount = internship.attendance.filter(a => a.status === AttendanceStatus.CHECKED_IN).length;
+
+    return {
+      ...internship,
+      stats: {
+        totalTasks,
+        completedTasks,
+        progress: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
+        attendanceCount,
+        presentCount,
+        attendanceRate: attendanceCount > 0 ? (presentCount / attendanceCount) * 100 : 0,
+      },
+    };
+  }
+
   private sanitizeFileName(name: string): string {
     return name
       .trim()
       .replace(/\s+/g, '_')
-      .replace(/[^a-zA-Z0-9_\-]/g, ''); 
+      .replace(/[^a-zA-Z0-9_\-]/g, '');
   }
+
+
+
+
+  async getActivityFeed(userId: number, limit: number = 10) {
+
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        internship: {
+          students: { some: { studentId: userId } },
+        },
+      },
+      orderBy: { deadline: 'desc' },
+      take: limit,
+      include: {
+        internship: {
+          include: {
+            opportunity: true,
+            company: true,
+          },
+        },
+      },
+    });
+
+
+    // 2. جلب التقييمات الجديدة
+    const evaluations = await this.prisma.evaluation.findMany({
+      where: { studentId: userId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        score: true,
+        feedback: true,
+        createdAt: true,
+        type: true,
+        evaluator: {
+          select: { firstName: true, lastName: true, role: true },
+        },
+      },
+    });
+
+    // 3. جلب الحضور
+    const attendance = await this.prisma.attendance.findMany({
+      where: { studentId: userId },
+      orderBy: { date: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        date: true,
+        status: true,
+        internship: {
+          select: {
+            opportunity: { select: { title: true } },
+          },
+        },
+      },
+    });
+
+    // 4. تجميع النشاطات وترتيبها زمنياً
+    const activities = [
+      ...tasks.map(t => ({
+        type: 'task',
+        title: t.title,
+        status: t.status,
+        time: t.deadline ?? new Date(),
+        details: `${t.internship?.opportunity?.title || ''} - ${t.internship?.company?.name || ''}`,
+      })),
+      ...evaluations.map(e => ({
+        type: 'evaluation',
+        score: e.score,
+        feedback: e.feedback,
+        time: e.createdAt,
+        details: `by ${e.evaluator?.firstName} ${e.evaluator?.lastName} (${e.type})`,
+      })),
+      ...attendance.map(a => ({
+        type: 'attendance',
+        status: a.status,
+        time: a.date,
+        details: a.internship?.opportunity?.title || '',
+      })),
+    ];
+
+    // ترتيب حسب التاريخ (الأحدث أولاً)
+    return activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, limit);
+  }
+
+
+
+  private async ensurePersonalIdNotUsed(personalID: number): Promise<void> {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { personalID },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Personal ID already exists');
+    }
+  }
+
+  normalizeEmail(email: string) {
+    return email.trim().toLowerCase();
+  }
+
+
+  private async ensureEmailNotUsed(email: string) {
+    const db = this.prisma;
+
+    const existing = await db.user.findUnique({ where: { email } });
+    if (existing) throw new ConflictException('Email already in use');
+  }
+
+
 
 
   private generateVerificationFileName(firstName: string, lastName: string): string {

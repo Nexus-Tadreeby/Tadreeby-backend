@@ -3,6 +3,7 @@ import { DatabaseService } from 'src/database/database.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
+import { generateFileName, FileTypeLabel, FileTypeToLabel } from '../../common/utils/file-naming.util';
 
 const unlinkAsync = promisify(fs.unlink);
 
@@ -20,7 +21,7 @@ export class FilesService {
   //  Maximum file size: 10MB
   private readonly MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-//* GET FILE PATH
+  //* GET FILE PATH
 
   getFilePath(type: FileType, userId: number, filename: string): string {
     const basePath = process.env.UPLOAD_PATH || './uploads';
@@ -33,7 +34,7 @@ export class FilesService {
     return path.join(basePath, folderMap[type], filename);
   }
 
-//* GET FILE URL
+  //* GET FILE URL
 
   getFileUrl(type: FileType, userId: number, filename: string): string {
     const baseUrl = process.env.BASE_URL || 'http://localhost:6060';
@@ -41,15 +42,17 @@ export class FilesService {
   }
 
 
-//* UPLOAD FILE
+  //* UPLOAD FILE
 
   async uploadFile(
     file: Express.Multer.File,
     type: FileType,
     userId: number,
+    userFirstName?: string,
+    userLastName?: string,
   ): Promise<{ filename: string; url: string; path: string }> {
-    //  Validate file (with 10MB limit)
-    this.validateFile(file);
+    //  Validate file (with type-specific limits)
+    this.validateFile(file, type);
 
     // Create folder if not exists
     const folderPath = path.join(
@@ -59,9 +62,17 @@ export class FilesService {
     );
     this.ensureFolderExists(folderPath);
 
-    // Generate unique filename
-    const ext = path.extname(file.originalname);
-    const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
+    // Generate filename with student name + file type
+    let filename: string;
+    if (userFirstName && userLastName) {
+      const typeLabel = FileTypeToLabel[type as keyof typeof FileTypeToLabel] || type;
+      filename = generateFileName(userFirstName, userLastName, typeLabel, file.originalname);
+    } else {
+      // Fallback to timestamp-based name if user info not provided
+      const ext = path.extname(file.originalname);
+      filename = `${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
+    }
+
     const filePath = path.join(folderPath, filename);
 
     // Save file
@@ -78,7 +89,7 @@ export class FilesService {
     };
   }
 
-// * DELETE FILE
+  // * DELETE FILE
   async deleteFile(type: FileType, userId: number): Promise<void> {
     // Get current filename from database
     const currentFile = await this.getCurrentFile(type, userId);
@@ -101,7 +112,7 @@ export class FilesService {
 
 
 
-//* GET CURRENT FILE NAME
+  //* GET CURRENT FILE NAME
 
   async getCurrentFile(type: FileType, userId: number): Promise<string | null> {
     switch (type) {
@@ -131,7 +142,7 @@ export class FilesService {
     }
   }
 
-//* GET FILE SIZE 
+  //* GET FILE SIZE 
 
   async getFileSize(type: FileType, userId: number, filename: string): Promise<number> {
     const filePath = this.getFilePath(type, userId, filename);
@@ -139,13 +150,28 @@ export class FilesService {
     return stats.size;
   }
 
-//* all private methods
+  //* all private methods
 
-  private validateFile(file: Express.Multer.File): void {
-    // 10MB limit
-    if (file.size > this.MAX_FILE_SIZE) {
+  private validateFile(file: Express.Multer.File, type: FileType): void {
+    // Type-specific size limits
+    const PROFILE_IMAGE_SIZE = 5 * 1024 * 1024;  // 5MB
+    const CV_SIZE = 5 * 1024 * 1024;             // 5MB
+    const VERIFICATION_SIZE = 5 * 1024 * 1024;   // 5MB
+    const TASK_SIZE = 10 * 1024 * 1024;          // 10MB
+
+    const maxSizeByType: Record<FileType, number> = {
+      [FileType.PROFILE]: PROFILE_IMAGE_SIZE,
+      [FileType.CV]: CV_SIZE,
+      [FileType.VERIFICATION]: VERIFICATION_SIZE,
+      [FileType.TASK]: TASK_SIZE,
+    };
+
+    const maxSize = maxSizeByType[type] || PROFILE_IMAGE_SIZE;
+
+    if (file.size > maxSize) {
+      const sizeInMB = maxSize / 1024 / 1024;
       throw new BadRequestException(
-        `File size exceeds ${this.MAX_FILE_SIZE / 1024 / 1024}MB limit`
+        `File size exceeds ${sizeInMB}MB limit for ${type} files`
       );
     }
 
