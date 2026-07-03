@@ -29,7 +29,16 @@ export class UniversityService {
     }
 
     return this.prisma.university.create({
-      data: dto,
+      data: {
+        name: dto.name,
+        shortCode: dto.shortCode,
+        email: dto.email,
+        phone: dto.phone,
+        location: dto.location,
+        description: dto.description,
+        logo: dto.logo,
+        isActive: dto.isActive,
+      },
     });
   }
 

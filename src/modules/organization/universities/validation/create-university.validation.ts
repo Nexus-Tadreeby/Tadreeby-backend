@@ -5,6 +5,7 @@ export const createUniversitySchema = z.object({
     name: z
         .string()
         .trim()
+        .regex(/^[A-Za-z\s]+(?:-[A-Za-z\s]+)*$/, 'Name must begin and end with a letter. Spaces and dashes are allowed only between letters.')
         .min(2, 'Name must be at least 2 characters')
         .max(50, 'Name is too long'),
 

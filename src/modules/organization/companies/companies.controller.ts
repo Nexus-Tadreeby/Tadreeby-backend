@@ -39,7 +39,7 @@ import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { AuthedUser } from 'src/common/decorators/authedUser.decorator';
 
-@ApiTags('Companies-test')
+@ApiTags('Companies')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('companies')
