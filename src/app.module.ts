@@ -15,6 +15,7 @@ import { UniversityModule } from './modules/organization/universities/university
 // import { AiModule } from './modules/ai/ai.module';
 // import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { CompaniesModule } from './modules/organization/companies/companies.module';
+import { UsersModule } from './modules/users/users.module';
 
 
 
@@ -35,6 +36,7 @@ import { CompaniesModule } from './modules/organization/companies/companies.modu
     CompaniesModule,
     // AiModule,
     // DashboardModule,
+    UsersModule,
     ],
 
   controllers: [AppController],
