@@ -56,7 +56,7 @@ export class UniversityService {
       isActive,
       location,
       phone,
-      sortBy = 'id',
+      sortBy = 'createdAt',
       sortOrder = 'desc',
     } = query;
 
@@ -66,8 +66,8 @@ export class UniversityService {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { shortCode: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
+        // { email: { contains: search, mode: 'insensitive' } },
+        // { description: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -86,16 +86,24 @@ export class UniversityService {
     const skip = (page - 1) * limit;
     const take = limit;
 
-    const orderBy: Prisma.UniversityOrderByWithRelationInput = {};
 
     const validSortFields: Record<string, keyof Prisma.UniversityOrderByWithRelationInput> = {
       'id': 'id',
       'name': 'name',
       'shortCode': 'shortCode',
+      'createdAt': 'createdAt',    
+      'updatedAt': 'updatedAt',    
+      'isActive': 'isActive',     
     };
 
-    const sortField = validSortFields[sortBy] || 'id';
-    orderBy[sortField] = sortOrder as Prisma.SortOrder;
+    const sortField = validSortFields[sortBy] || 'createdAt';
+
+
+    const orderBy: Prisma.UniversityOrderByWithRelationInput = {
+      [sortField]: sortOrder as Prisma.SortOrder
+    };
+
+    // orderBy[sortField] = sortOrder as Prisma.SortOrder;
 
     try {
       const [data, total] = await Promise.all([
@@ -120,7 +128,6 @@ export class UniversityService {
 
       const totalPages = Math.ceil(total / limit);
 
-      // Add hasNextPage and hasPreviousPage
       return {
         data,
         meta: {
@@ -325,8 +332,8 @@ export class UniversityService {
       where.OR = [
         { name: { contains: searchTerm, mode: 'insensitive' } },
         { shortCode: { contains: searchTerm, mode: 'insensitive' } },
-        { email: { contains: searchTerm, mode: 'insensitive' } },
-        { description: { contains: searchTerm, mode: 'insensitive' } },
+        // { email: { contains: searchTerm, mode: 'insensitive' } },
+        // { description: { contains: searchTerm, mode: 'insensitive' } },
       ];
     }
 

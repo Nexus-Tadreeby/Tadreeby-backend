@@ -12,6 +12,7 @@ import {
   UseInterceptors,
   UseGuards,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { UniversityService } from './university.service';
@@ -43,6 +44,79 @@ import { AuthedUser } from 'src/common/decorators/authedUser.decorator';
 @Controller('universities')
 export class UniversityController {
   constructor(private readonly universityService: UniversityService) { }
+
+
+  @Get()
+  @Roles([UserRole.SUPER_ADMIN, UserRole.UNIVERSITY_ADMIN, UserRole.UNIVERSITY_SUPERVISOR])
+  @ApiOperation({
+    summary: 'Get all universities with search, filters & pagination',
+    description: 'Supports searching by name, shortCode, email, or description. Filter by status, location, and phone.'
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Returns paginated list of universities',
+  })
+  @UseInterceptors(PaginationInterceptor)
+  async findAll(
+    @Query(new ZodValidationPipe(UniversityQuerySchema))
+    query: UniversityQueryType,
+    @AuthedUser() user: authedUserType,
+  ): Promise<ApiPaginationSuccessResponse<University>> {
+    console.log(`👤 ${user.email} (${user.role}) is fetching universities`);
+    console.log('🔍 Query:', query);
+
+    const result = await this.universityService.findAll(query);
+  
+    let message: string | undefined;
+
+
+
+
+    if (result.data.length === 0) {
+      if (query.search) {
+        message = `No universities found matching "${query.search}"`;
+      } else if (query.location) {
+        message = `No universities found in "${query.location}"`;
+      } else if (query.isActive === false) {
+        message = 'No inactive universities found';
+      } else if (query.isActive === true) {
+        message = 'No active universities found';
+      }
+      else {
+        message = 'No universities found';
+      }
+
+    }
+
+    // if (result.data.length === 0) {
+    //   console.log('✅ No data found, returning with message');
+    //   let message = 'No universities found';
+    //   if (query.search) {
+    //     message = `No universities found matching "${query.search}"`;
+    //   } else if (query.location) {
+    //     message = `No universities found in "${query.location}"`;
+    //   } else if (query.isActive === false) {
+    //     message = 'No inactive universities found';
+    //   }
+
+    //   return {
+    //     success: true,
+    //     data: result.data,
+    //     meta: result.meta,
+    //     message: message, 
+    //   };
+    // }
+
+    return {
+      success: true,
+      data: result.data,
+      meta: result.meta,
+      message:message
+     
+    };
+  }
+
+
 
   @Post("create-university")
   @Roles(UserRole.SUPER_ADMIN)
@@ -78,32 +152,7 @@ export class UniversityController {
     };
   }
 
-  @Get()
-  @Roles([UserRole.SUPER_ADMIN, UserRole.UNIVERSITY_ADMIN, UserRole.UNIVERSITY_SUPERVISOR])
-  @ApiOperation({
-    summary: 'Get all universities with search, filters & pagination',
-    description: 'Supports searching by name, shortCode, email, or description. Filter by status, location, and phone.'
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Returns paginated list of universities',
-  })
-  @UseInterceptors(PaginationInterceptor)
-  async findAll(
-    @Query(new ZodValidationPipe(UniversityQuerySchema))
-    query: UniversityQueryType,
-    @AuthedUser() user: any,
-  ): Promise<ApiPaginationSuccessResponse<University>> {
-    console.log(`👤 ${user.email} (${user.role}) is fetching universities`);
 
-    const result = await this.universityService.findAll(query);
-
-    return {
-      success: true,
-      data: result.data,
-      meta: result.meta,
-    };
-  }
 
   @Get(':id')
   @Roles([UserRole.SUPER_ADMIN, UserRole.UNIVERSITY_ADMIN, UserRole.UNIVERSITY_SUPERVISOR])
@@ -118,11 +167,10 @@ export class UniversityController {
   })
   async findOne(
     @Param('id') id: string,
-    @AuthedUser() user: any,
+    @AuthedUser() user: authedUserType,
   ): Promise<ApiSuccessResponse<University>> {
     console.log(`👤 ${user.email} (${user.role}) is fetching university ${id}`);
 
-    // ✅ Check if user has access to this university
     if (user.role !== UserRole.SUPER_ADMIN && user.universityId !== +id) {
       throw new ForbiddenException('You can only view your own university');
     }
@@ -193,7 +241,7 @@ export class UniversityController {
       throw new ForbiddenException('You can only update your own university');
     }
 
-    const data = await this.universityService.update(+id, updateUniversityDto , user);
+    const data = await this.universityService.update(+id, updateUniversityDto, user);
 
     return {
       success: true,
@@ -219,7 +267,7 @@ export class UniversityController {
   })
   async deactivate(
     @Param('id') id: string,
-    @AuthedUser() user: any,
+    @AuthedUser() user: authedUserType,
   ): Promise<ApiSuccessResponse<University>> {
     console.log(`👤 ${user.email} (${user.role}) is deactivating university ${id}`);
 
@@ -231,9 +279,9 @@ export class UniversityController {
     };
   }
 
-  // ============================================
-  // ✅ SEARCH UNIVERSITIES
-  // ============================================
+
+
+
 
   @Get('search')
   @ApiOperation({
@@ -289,6 +337,23 @@ export class UniversityController {
   ) {
     console.log(`👤 ${user.email} (${user.role}) is searching universities with query: ${q}`);
 
+    if (!q || q.trim().length === 0) {
+      throw new BadRequestException('Search query "q" is required');
+    }
+
+    // ✅ Convert and validate page and limit
+    const pageNumber = page ? parseInt(page, 10) : 1;
+    const limitNumber = limit ? parseInt(limit, 10) : 10;
+
+    if (isNaN(pageNumber) || pageNumber < 1) {
+      throw new BadRequestException('Page must be a positive number');
+    }
+
+    if (isNaN(limitNumber) || limitNumber < 1 || limitNumber > 100) {
+      throw new BadRequestException('Limit must be between 1 and 100');
+    }
+
+
     const result = await this.universityService.search({
       q: q || '',
       page: page ? parseInt(page) : 1,
@@ -322,7 +387,7 @@ export class UniversityController {
   })
   async activate(
     @Param('id') id: string,
-    @AuthedUser() user: any,
+    @AuthedUser() user: authedUserType,
   ): Promise<ApiSuccessResponse<University>> {
     console.log(`👤 ${user.email} (${user.role}) is activating university ${id}`);
 
