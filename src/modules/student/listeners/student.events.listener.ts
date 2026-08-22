@@ -19,7 +19,7 @@ export class StudentEventsListener {
     ) { }
 
     private frontendUrl() {
-        return process.env.FRONTEND_URL || 'http://localhost:3000';
+        return process.env.FRONTEND_URL || 'http://localhost:5173';
     }
 
     // ---------------- REGISTERED ----------------
@@ -42,7 +42,7 @@ export class StudentEventsListener {
             NotificationType.APPLICATION,
         );
 
-        const profileUrl = `${this.frontendUrl()}/profile`;
+        const profileUrl = `${this.frontendUrl()}/student/profile`;
 
         try {
             // 1. Build the modern email HTML
@@ -127,7 +127,9 @@ export class StudentEventsListener {
         );
 
         const frontend = this.frontendUrl();
-        const loginUrl = `${frontend}/login`;
+        // const loginUrl = `${frontend}/login`;
+
+        const loginUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/student/profile`
 
         let approverText = '';
 

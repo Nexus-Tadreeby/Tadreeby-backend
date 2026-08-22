@@ -1,21 +1,30 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateStudentProfileDto {
-    @ApiPropertyOptional()
-    firstName?: string;
+    // @ApiPropertyOptional()
+    // firstName?: string;
 
-    @ApiPropertyOptional()
-    lastName?: string;
+    // @ApiPropertyOptional()
+    // lastName?: string;
 
     @ApiPropertyOptional()
     phone?: string;
 
-    @ApiPropertyOptional()
-    major?: string;
+    // @ApiPropertyOptional()
+    // major?: string;
+
+    // @ApiPropertyOptional()
+    // academicYear?: number ;
 
     @ApiPropertyOptional()
-    academicYear?: number;
+    gpa?: number | null;
 
     @ApiPropertyOptional()
-    gpa?: number;
+    profileImage?: string | null;
+
+    @ApiPropertyOptional()
+    cvFile?: string | null; 
+    
+    @ApiPropertyOptional()
+    recoveryEmail?: string | null;
 }

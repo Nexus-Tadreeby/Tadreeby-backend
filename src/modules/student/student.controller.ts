@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { StudentService } from './student.service';
 import { RegisterStudentDto } from './dto/register-student.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -12,6 +12,8 @@ import { Roles } from 'src/common/decorators/roles.decorator';
 import { ZodValidationPipe } from 'src/common/pipes/zod.pipe';
 import { UpdateStudentProfileDto } from './dto/update-student-profile.dto';
 import { UpdateStudentProfileSchema } from './validation/update-student-profile.validation.schema';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { cvMulterConfig } from 'src/common/config/multer.config';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -46,6 +48,30 @@ export class StudentController {
     const data = await this.studentService.updateProfile(user.id, dto);
     return { success: true, data, message: 'Profile updated successfully' };
   }
+
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('profile/cv')
+  @Roles([UserRole.STUDENT])
+  @UseInterceptors(FileInterceptor('cvFile', cvMulterConfig))
+  @ApiOperation({ summary: 'Upload student CV' })
+  async uploadCv(
+    @AuthedUser() user: authedUserType,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const data = await this.studentService.uploadCv(user.id, file);
+    return { success: true, data, message: 'CV uploaded successfully' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('profile/cv')
+  @Roles([UserRole.STUDENT])
+  @ApiOperation({ summary: 'Remove student CV' })
+  async removeCv(@AuthedUser() user: authedUserType) {
+    const data = await this.studentService.removeCv(user.id);
+    return { success: true, data, message: 'CV removed successfully' };
+  }
+
 
   @UseGuards(JwtAuthGuard)
   @Patch('profile/reupload-document')
@@ -91,6 +117,27 @@ export class StudentController {
   }
 
 
+  @Get('opportunities')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles([UserRole.STUDENT])
+  @ApiOperation({ summary: 'Get available training opportunities' })
+  async getAvailableOpportunities(@AuthedUser() user: authedUserType) {
+    const data = await this.studentService.getAvailableOpportunities();
+    return { success: true, data };
+  }
+
+
+  @Get(['opportunities/:opportunityId', 'opportunity/:opportunityId'])
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles([UserRole.STUDENT])
+  @ApiOperation({ summary: 'Get a single training opportunity by id' })
+  async getOpportunityById(
+    @AuthedUser() user: authedUserType,
+    @Param('opportunityId') opportunityId: string,
+  ) {
+    const data = await this.studentService.getOpportunityById(user.id, +opportunityId);
+    return { success: true, data };
+  }
 
   @Get('internships')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -101,7 +148,8 @@ export class StudentController {
     return { success: true, data };
   }
 
-  @Post('apply/:opportunityId')
+  // @Post('apply/:opportunityId')
+  @Post(['opportunities/:opportunityId/apply', 'opportunity/:opportunityId/apply'])
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles([UserRole.STUDENT])
   @ApiOperation({ summary: 'Apply for a training opportunity' })
@@ -114,7 +162,8 @@ export class StudentController {
   }
 
 
-  @Get('internship/:internshipId')
+  // @Get('internship/:internshipId')
+  @Get(['internships/:internshipId', 'internship/:internshipId'])
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles([UserRole.STUDENT])
   @ApiOperation({ summary: 'Get internship details with tasks and submissions' })
