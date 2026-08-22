@@ -52,7 +52,60 @@ export class AuthService {
     }
 
 
-    
+
+
+    async checkEmailAvailability(email: string) {
+        const normalizedEmail = email?.trim().toLowerCase();
+
+        if (!normalizedEmail) {
+            return { available: false, message: 'Email is required' };
+        }
+
+        const existing = await this.prisma.user.findUnique({
+            where: { email: normalizedEmail },
+            select: { id: true },
+        });
+
+        return {
+            available: !existing,
+            message: existing ? 'This email is already in use.' : 'Email is available.',
+        };
+    }
+
+    async checkNationalIdAvailability(personalID: number) {
+        if (!personalID) {
+            return { available: false, message: 'National ID is required' };
+        }
+
+        const existing = await this.prisma.user.findUnique({
+            where: { personalID },
+            select: { id: true },
+        });
+
+        return {
+            available: !existing,
+            message: existing ? 'This National ID is already in use.' : 'National ID is available.',
+        };
+    }
+
+    async checkStudentNumberAvailability(studentNumber: number, universityId: number) {
+        if (!studentNumber || !universityId) {
+            return { available: false, message: 'Student number and university are required' };
+        }
+
+        const existing = await this.prisma.studentProfile.findFirst({
+            where: {
+                studentNumber,
+                universityId,
+            },
+            select: { userId: true },
+        });
+
+        return {
+            available: !existing,
+            message: existing ? 'This student number is already in use for this university.' : 'Student number is available.',
+        };
+    }
 
 
     

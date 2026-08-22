@@ -124,6 +124,28 @@ export class AuthController {
         return this.authService.registerStudent(cleanDto, req);
     }
 
+
+    @IsPublic()
+    @Post('check-email')
+    async checkEmail(@Body() body: { email: string }) {
+        return this.authService.checkEmailAvailability(body.email);
+    }
+
+    @IsPublic()
+    @Post('check-national-id')
+    async checkNationalId(@Body() body: { personalID: number }) {
+        return this.authService.checkNationalIdAvailability(Number(body.personalID));
+    }
+
+    @IsPublic()
+    @Post('check-student-number')
+    async checkStudentNumber(@Body() body: { studentNumber: number; universityId: number }) {
+        return this.authService.checkStudentNumberAvailability(
+            Number(body.studentNumber),
+            Number(body.universityId),
+        );
+    }
+
     // @IsPublic()
     // @Post("register/student")
     // @ApiOperation({ summary: 'Student registration with document upload' })
