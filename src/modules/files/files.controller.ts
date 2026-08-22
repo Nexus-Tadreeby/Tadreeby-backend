@@ -66,7 +66,7 @@ export class FilesController {
         success: true,
         data: {
           filename: '1732456789123-abc123.jpg',
-          url: 'http://localhost:3000/files/profile/1/1732456789123-abc123.jpg',
+          url: 'http://localhost:5173/files/profile/1/1732456789123-abc123.jpg',
           message: 'Profile image uploaded successfully',
         },
       },
@@ -94,7 +94,7 @@ export class FilesController {
   }
 
 
-  
+
 
 
   @Post('cv')
@@ -121,7 +121,7 @@ export class FilesController {
         success: true,
         data: {
           filename: '1732456789123-abc123.pdf',
-          url: 'http://localhost:3000/files/cv/1/1732456789123-abc123.pdf',
+          url: 'http://localhost:5173/files/cv/1/1732456789123-abc123.pdf',
           message: 'CV uploaded successfully',
         },
       },
@@ -148,7 +148,7 @@ export class FilesController {
     };
   }
 
-  
+
 
 
 
@@ -176,7 +176,7 @@ export class FilesController {
         success: true,
         data: {
           filename: '1732456789123-abc123.pdf',
-          url: 'http://localhost:3000/files/verification/1/1732456789123-abc123.pdf',
+          url: 'http://localhost:5173/files/verification/1/1732456789123-abc123.pdf',
           message: 'Verification document uploaded successfully',
         },
       },
@@ -206,7 +206,7 @@ export class FilesController {
 
 
 
-  
+
 
 
   @Delete('profile')
@@ -236,7 +236,7 @@ export class FilesController {
   }
 
 
-  
+
 
   @Delete('cv')
   @Roles(UserRole.STUDENT)
@@ -264,7 +264,7 @@ export class FilesController {
     };
   }
 
-  
+
 
 
   @Delete('verification')
@@ -293,7 +293,7 @@ export class FilesController {
     };
   }
 
-  
+
 
 
   @Get(':type/:userId/:filename')

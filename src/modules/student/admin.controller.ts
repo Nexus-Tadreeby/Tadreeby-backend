@@ -7,6 +7,7 @@ import { AuthedUser } from '../../common/decorators/authedUser.decorator';
 import type { authedUserType } from '../../common/types/unifiedType.types';
 import { UserRole } from '@prisma/client';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { convertBigIntFields } from 'src/common/utils/bigint.util';
 
 @UseGuards(JwtAuthGuard)
 @ApiTags('Admin/Students')
@@ -93,6 +94,9 @@ export class StudentAdminController {
 
         if (!u) throw new NotFoundException('User not found');
 
+        const studentProfile = u.studentProfile ? convertBigIntFields(u.studentProfile) : null;
+
+
         const mapped = {
             id: u.id,
             firstName: u.firstName,
@@ -100,7 +104,8 @@ export class StudentAdminController {
             email: u.email,
             university: u.university ? { id: u.university.id, name: u.university.name } : null,
             company: u.company ? { id: u.company.id, name: u.company.name } : null,
-            studentProfile: u.studentProfile,
+            // studentProfile: u.studentProfile,
+            studentProfile
         };
 
         return { user: mapped };
@@ -143,6 +148,9 @@ export class StudentAdminController {
 
         if (!u) throw new NotFoundException('User not found');
 
+        const studentProfile = u.studentProfile ? convertBigIntFields(u.studentProfile) : null;
+
+
         const mapped = {
             id: u.id,
             firstName: u.firstName,
@@ -150,7 +158,8 @@ export class StudentAdminController {
             email: u.email,
             university: u.university ? { id: u.university.id, name: u.university.name } : null,
             company: u.company ? { id: u.company.id, name: u.company.name } : null,
-            studentProfile: u.studentProfile,
+            //studentProfile: u.studentProfile,
+            studentProfile
         };
 
         return { user: mapped };

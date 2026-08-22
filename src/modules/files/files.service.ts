@@ -154,7 +154,7 @@ export class FilesService {
 
   private validateFile(file: Express.Multer.File, type: FileType): void {
     // Type-specific size limits
-    const PROFILE_IMAGE_SIZE = 5 * 1024 * 1024;  // 5MB
+    const PROFILE_IMAGE_SIZE = 10 * 1024 * 1024;  // 5MB
     const CV_SIZE = 5 * 1024 * 1024;             // 5MB
     const VERIFICATION_SIZE = 5 * 1024 * 1024;   // 5MB
     const TASK_SIZE = 10 * 1024 * 1024;          // 10MB

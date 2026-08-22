@@ -239,7 +239,7 @@ export function buildWelcomeEmail(userName: string, confirmationLink: string) {
 export function buildApplicationApprovedEmail(
   user: { firstName: string; email: string },
   approverText: string,
-  loginUrl: string
+  loginUrl: string = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/student/profile`
 ) {
   const approverDisplay = approverText
     ? `by <strong>${approverText.replace(/^ by /, '')}</strong>`
@@ -264,7 +264,7 @@ export function buildApplicationApprovedEmail(
     </div>
 
     <div style="margin-top: 28px; text-align: center;">
-      <a href="${loginUrl}" 
+      <a href="http://localhost:5173/student/profile" 
          style="background: #16a34a; color: #ffffff; padding: 14px 40px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 700; font-size: 17px; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35); border: 1px solid #16a34a; min-width: 160px;">
         Login to Your Account
       </a>
@@ -288,7 +288,7 @@ export function buildApplicationApprovedEmail(
 
 export function buildApplicationReceivedEmail(
   user: { firstName: string; email: string },
-  profileUrl: string
+  profileUrl: string = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/student/profile`
 ) {
   const content = `
     ${heading(`Thank you, ${user.firstName}! `, 1)}
@@ -310,7 +310,7 @@ export function buildApplicationReceivedEmail(
     </div>
 
     <div style="margin-top: 28px; text-align: center;">
-      <a href="${profileUrl}" 
+      <a href="http://localhost:5173/student/profile" 
          style="background: #2563eb; color: #ffffff; padding: 14px 40px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 700; font-size: 17px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35); border: 1px solid #2563eb; min-width: 160px;">
         View My Profile
       </a>
@@ -365,7 +365,7 @@ export function buildApplicationRejectedEmail(
     </div>
 
     <div style="margin-top: 28px; text-align: center;">
-      <a href="${profileUrl}" 
+      <a href="http://localhost:5173/student/profile" 
          style="background: #dc2626; color: #ffffff; padding: 14px 40px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 700; font-size: 17px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35); border: 1px solid #dc2626; min-width: 160px;">
         Update & Re-upload Documents
       </a>

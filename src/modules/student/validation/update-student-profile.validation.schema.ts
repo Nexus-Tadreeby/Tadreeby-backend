@@ -4,12 +4,16 @@ import { UpdateStudentProfileDto } from '../dto/update-student-profile.dto';
 
 export const UpdateStudentProfileSchema = z
     .object({
-        firstName: nameSchema.optional(),
-        lastName: nameSchema.optional(),
-        phone: phoneSchema.optional(),
-        major: z.string().min(1).optional(),
-        academicYear: z.coerce.number().int().positive().optional(),
-        gpa: z.number().min(0).max(4).optional(),
+        // firstName: nameSchema.optional(),
+        // lastName: nameSchema.optional(),
+        // phone: phoneSchema.optional(),
+        // major: z.string().min(1).optional(),
+        // academicYear: z.coerce.number().int().positive().optional(),
+        gpa: z.number().min(0).max(4).optional().nullable(),
+        profileImage: z.string().optional().nullable(),
+        cvFile: z.string().optional().nullable(),
+        recoveryEmail: z.string().email().nullable().optional(),
+
     })
     .strict()
     .refine((data) => Object.keys(data).length > 0, {

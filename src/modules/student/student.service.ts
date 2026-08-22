@@ -8,6 +8,7 @@ import { hashPassword } from '../auth/utils/crypto.util';
 import { removeFields } from '../../common/utils/object.util';
 import { AuthUserResponse } from 'src/common/types/unifiedType.types';
 import { UpdateStudentProfileDto } from './dto/update-student-profile.dto';
+import { convertBigIntFields } from 'src/common/utils/bigint.util';
 
 @Injectable()
 export class StudentService {
@@ -148,12 +149,9 @@ export class StudentService {
     });
 
     if (!profile) throw new NotFoundException('Student profile not found');
-    return profile;
+    // return profile;
+    return convertBigIntFields(profile);
   }
-
-
-
-
 
   async updateProfile(userId: number, dto: UpdateStudentProfileDto) {
     const profile = await this.prisma.studentProfile.findUnique({
@@ -161,22 +159,46 @@ export class StudentService {
     });
     if (!profile) throw new NotFoundException('Student profile not found');
 
-    if (dto.firstName || dto.lastName || dto.phone) {
+    // // Update user fields if provided
+    // if (dto.firstName || dto.lastName || dto.phone) {
+    //   await this.prisma.user.update({
+    //     where: { id: userId },
+    //     data: {
+    //       firstName: dto.firstName,
+    //       lastName: dto.lastName,
+    //       phone: dto.phone,
+    //     },
+    //   });
+    // }
+
+
+    // Prepare user update data
+    const userUpdateData: any = {};
+    // if (dto.firstName) userUpdateData.firstName = dto.firstName;
+    // if (dto.lastName) userUpdateData.lastName = dto.lastName;
+    if (dto.phone) userUpdateData.phone = dto.phone;
+    if (dto.profileImage !== undefined) userUpdateData.profileImage = dto.profileImage;
+
+    if (Object.keys(userUpdateData).length > 0) {
       await this.prisma.user.update({
         where: { id: userId },
-        data: {
-          firstName: dto.firstName,
-          lastName: dto.lastName,
-          phone: dto.phone,
-        },
+        data: userUpdateData,
       });
     }
 
-    return this.prisma.studentProfile.update({
+    // Prepare student profile update data
+    const studentUpdateData: any = {};
+    // if (dto.major) studentUpdateData.major = dto.major;
+    // if (dto.academicYear !== undefined) studentUpdateData.academicYear = dto.academicYear;
+    if (dto.gpa !== undefined) studentUpdateData.gpa = dto.gpa;
+    if (dto.cvFile) studentUpdateData.cvUrl = dto.cvFile; // store base64
+    if (dto.recoveryEmail !== undefined) userUpdateData.recoveryEmail = dto.recoveryEmail; // ✅ جديد
+
+    const updated = await this.prisma.studentProfile.update({
       where: { userId },
       data: {
-        major: dto.major,
-        academicYear: dto.academicYear,
+        // major: dto.major,
+        // academicYear: dto.academicYear,
         gpa: dto.gpa,
       },
       include: {
@@ -186,12 +208,218 @@ export class StudentService {
             firstName: true,
             lastName: true,
             email: true,
+            recoveryEmail: true,
             phone: true,
             profileImage: true,
+
           },
         },
       },
     });
+
+    // ✅ Convert BigInt AND return the data
+    return convertBigIntFields(updated);
+  }
+
+
+
+  // async updateProfile(userId: number, dto: UpdateStudentProfileDto) {
+  //   const profile = await this.prisma.studentProfile.findUnique({
+  //     where: { userId },
+  //   });
+  //   if (!profile) throw new NotFoundException('Student profile not found');
+
+  //   if (dto.firstName || dto.lastName || dto.phone) {
+  //     await this.prisma.user.update({
+  //       where: { id: userId },
+  //       data: {
+  //         firstName: dto.firstName,
+  //         lastName: dto.lastName,
+  //         phone: dto.phone,
+  //       },
+  //     });
+  //   }
+
+  //   // return this.prisma.studentProfile.update({
+  //   //   where: { userId },
+  //   //   data: {
+  //   //     major: dto.major,
+  //   //     academicYear: dto.academicYear,
+  //   //     gpa: dto.gpa,
+  //   //   },
+  //   //   include: {
+  //   //     user: {
+  //   //       select: {
+  //   //         id: true,
+  //   //         firstName: true,
+  //   //         lastName: true,
+  //   //         email: true,
+  //   //         phone: true,
+  //   //         profileImage: true,
+  //   //       },
+  //   //     },
+  //   //   },
+  //   // });
+
+
+  //   const updated = await this.prisma.studentProfile.update({
+  //     where: { userId },
+  //     data: {
+  //       major: dto.major,
+  //       academicYear: dto.academicYear,
+  //       gpa: dto.gpa,
+  //     },
+  //     include: {
+  //       user: {
+  //         select: {
+  //           id: true,
+  //           firstName: true,
+  //           lastName: true,
+  //           email: true,
+  //           phone: true,
+  //           profileImage: true,
+  //         },
+  //       },
+  //     },
+  //   });
+
+  //   // ✅ Convert BigInt to Number, Date to ISO string
+  //   return convertBigIntFields(updated);
+  // }
+
+
+
+  // async getAvailableOpportunities() {
+  //   const opportunities = await this.prisma.trainingOpportunity.findMany({
+  //     where: { isActive: true },
+  //     include: { company: true },
+  //     orderBy: { id: 'desc' },
+  //   });
+
+  //   return opportunities.map((opportunity) => {
+  //     const requiredSkills = opportunity.requiredSkills
+  //       ? opportunity.requiredSkills
+  //         .split(',')
+  //         .map(skill => skill.trim())
+  //         .filter(Boolean)
+  //       : [];
+
+  //     return {
+  //       id: opportunity.id,
+  //       company: opportunity.company?.name || 'Company',
+  //       internship: opportunity.title,
+  //       field: opportunity.title,
+  //       trainer: 'Company Team',
+  //       seats: opportunity.totalSeats,
+  //       requiredSkills,
+  //       type: opportunity.type === 'REMOTE' ? 'Remote' : opportunity.type === 'HYBRID' ? 'Hybrid' : 'On-site',
+  //       location: opportunity.location || 'Remote',
+  //       startDate: 'Open now',
+  //       endDate: opportunity.duration || 'Flexible',
+  //       image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80',
+  //       description: opportunity.description,
+  //     };
+  //   });
+  // }
+
+
+
+  async getAvailableOpportunities() {
+    const opportunities = await this.prisma.trainingOpportunity.findMany({
+      where: {
+        isActive: true,
+        totalSeats: {
+          gt: 0,
+        },
+      },
+      include: {
+        company: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            location: true,
+          },
+        },
+
+        internships: {
+          include: {
+            trainer: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                profileImage: true,
+              },
+            },
+
+            university: {
+              select: {
+                id: true,
+                name: true,
+                logo: true,
+              },
+            },
+          },
+        },
+      },
+
+      orderBy: {
+        id: 'desc',
+      },
+    });
+
+    return opportunities.map((opportunity) => ({
+      ...opportunity,
+
+      requiredSkills: opportunity.requiredSkills
+        ? opportunity.requiredSkills
+          .split(',')
+          .map((skill) => skill.trim())
+          .filter(Boolean)
+        : [],
+    }));
+  }
+
+
+
+  async getOpportunityById(userId: number, opportunityId: number) {
+    const opportunity = await this.prisma.trainingOpportunity.findUnique({
+      where: { id: opportunityId, isActive: true },
+      include: { company: true },
+    });
+
+    if (!opportunity) {
+      throw new NotFoundException('Opportunity not found');
+    }
+
+    return this.mapOpportunity(opportunity);
+  }
+
+  private mapOpportunity(opportunity: any) {
+    const requiredSkills = opportunity.requiredSkills
+      ? opportunity.requiredSkills
+        .split(',')
+        .map((skill: string) => skill.trim())
+        .filter(Boolean)
+      : [];
+
+    return {
+      id: opportunity.id,
+      company: opportunity.company?.name || 'Company',
+      companyId: opportunity.companyId,
+      internship: opportunity.title,
+      field: opportunity.title,
+      trainer: 'Company Team',
+      seats: opportunity.totalSeats,
+      requiredSkills,
+      type: opportunity.type === 'REMOTE' ? 'Remote' : opportunity.type === 'HYBRID' ? 'Hybrid' : 'On-site',
+      location: opportunity.location || 'Remote',
+      startDate: 'Open now',
+      endDate: opportunity.duration || 'Flexible',
+      image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80',
+      description: opportunity.description,
+    };
   }
 
 
@@ -199,6 +427,59 @@ export class StudentService {
 
 
 
+
+
+
+
+
+  async uploadCv(userId: number, file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('CV file is required');
+
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    if (!allowedTypes.includes(file.mimetype)) {
+      throw new BadRequestException('Please upload a PDF, DOC, or DOCX file');
+    }
+
+    const cvFile = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    const updatedProfile = await this.prisma.studentProfile.update({
+      where: { userId },
+      data: { cvUrl: cvFile },
+      select: {
+        user: {
+          select: {
+            recoveryEmail: true,
+          },
+        userId: true,
+        cvUrl: true,
+        },
+      },
+    });
+
+    return convertBigIntFields(updatedProfile);
+  }
+
+
+  async removeCv(userId: number) {
+    const updatedProfile = await this.prisma.studentProfile.update({
+      where: { userId },
+      data: { cvUrl: null },
+      select: {
+        user: {
+         select: {
+           recoveryEmail: true,
+         },
+        userId: true,
+        cvUrl: true,
+        },
+      },
+    });
+
+    return convertBigIntFields(updatedProfile);
+  }
 
   async getSkills(userId: number): Promise<string[]> {
     const profile = await this.prisma.studentProfile.findUnique({
@@ -321,7 +602,8 @@ export class StudentService {
       universityId: updated.universityId,
     });
 
-    return updated;
+    // return updated;
+    return convertBigIntFields(updated);
   }
 
 
