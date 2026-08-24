@@ -10,6 +10,7 @@ import {
   HttpStatus,
   HttpCode,
   BadRequestException,
+  Body,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiQuery, ApiNotFoundResponse, ApiConflictResponse, ApiOkResponse, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
@@ -149,7 +150,7 @@ export class UsersController {
   async getAllUsers(
     @Query(new ZodValidationPipe(UserQuerySchema)) query: UserQueryType,
   ): Promise<ApiPaginationSuccessResponse<any>> {
-    console.log('🔍 Query received:', query); 
+    console.log('🔍 Query received:', query);
     const result = await this.usersService.getAllUsers(query);
     let message: string | undefined;
 
@@ -195,11 +196,20 @@ export class UsersController {
       success: true,
       data: result.data,
       meta: result.meta,
-      ...(message && {message})
+      ...(message && { message })
     };
   }
 
 
+
+  @Patch('status')
+  @Roles([UserRole.SUPER_ADMIN, UserRole.UNIVERSITY_ADMIN, UserRole.COMPANY_ADMIN, UserRole.UNIVERSITY_SUPERVISOR, UserRole.COMPANY_TRAINER, UserRole.STUDENT])
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update current user online status' })
+  async updateCurrentUserStatus(@AuthedUser() user: any, @Body() dto: { status: 'ONLINE' | 'OFFLINE' | 'AWAY' | 'BUSY' }) {
+    const data = await this.usersService.updateCurrentUserStatus(user.id, dto.status);
+    return { success: true, data, message: 'User status updated successfully' };
+  }
 
   @Get('profile')
   @ApiOperation({
@@ -296,7 +306,7 @@ export class UsersController {
     return { success: true, data };
   }
 
-  
+
 
 
   @Get(':id')
@@ -362,8 +372,8 @@ export class UsersController {
     return { success: true, data };
   }
 
-  
-  
+
+
 
 
 
@@ -410,7 +420,7 @@ export class UsersController {
   }
 
 
-  
+
 
 
   @Get('university/:id')
@@ -463,11 +473,11 @@ export class UsersController {
     }
 
     return { success: true, data };
-  
+
   }
 
 
-  
+
 
 
   @Get('company/:id')
@@ -524,7 +534,7 @@ export class UsersController {
   }
 
 
-  
+
 
 
   @Patch(':id/activate')
@@ -571,8 +581,8 @@ export class UsersController {
   }
 
 
-  
-  
+
+
 
   @Patch(':id/deactivate')
   @Roles([UserRole.SUPER_ADMIN])
@@ -618,7 +628,7 @@ export class UsersController {
   }
 
 
-  
+
 
 
   @Delete(':id')
@@ -648,7 +658,7 @@ export class UsersController {
   async deleteUser(@Param('id') id: string): Promise<ApiSuccessResponse<any>> {
     await this.usersService.deleteUser(+id);
     return {
-      data: null, 
+      data: null,
       success: true,
       message: 'User deleted successfully',
     };
