@@ -15,10 +15,19 @@ import { UniversityModule } from './modules/organization/universities/university
 // import { AiModule } from './modules/ai/ai.module';
 // import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { CompaniesModule } from './modules/organization/companies/companies.module';
+import { ChatModule } from './modules/chat/chat.module';
 import { UsersModule } from './modules/users/users.module';
-
-
-
+import { CompanyAdminModule } from './modules/company/admin/company-admin.module';
+import { CompanyTrainerModule } from './modules/company/trainer/company-trainer.module';
+import { ApplicationsModule } from './modules/applications/applications.module';
+import { TasksModule } from './modules/tasks/tasks.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
+import { EvaluationsModule } from './modules/evaluations/evaluations.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AiModule } from './modules/ai/ai.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { UniversityAdminModule } from './modules/university/admin/university-admin.module';
+import { UniversitySupervisorModule } from './modules/university/supervisor/university-supervisor.module';
 
 @Module({
   imports: [
@@ -34,10 +43,20 @@ import { UsersModule } from './modules/users/users.module';
     NotificationModule,
     UniversityModule,
     CompaniesModule,
-    // AiModule,
-    // DashboardModule,
+    ChatModule,
+    CompanyAdminModule,
+    CompanyTrainerModule,
+    ApplicationsModule,
+    TasksModule,
+    AttendanceModule,
+    EvaluationsModule,
+    NotificationsModule,
+    AiModule,
+    AuditModule,
     UsersModule,
-    ],
+    UniversityAdminModule,
+    UniversitySupervisorModule,
+  ],
 
   controllers: [AppController],
   providers: [
