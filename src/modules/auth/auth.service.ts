@@ -38,9 +38,9 @@ export class AuthService {
     ) { }
 
 
-    
-    
-    async registerStudent(dto:Omit<RegisterStudentDto, 'confirmPassword'>, req: Request) {
+
+
+    async registerStudent(dto: Omit<RegisterStudentDto, 'confirmPassword'>, req: Request) {
         const student = await this.studentService.create(dto);
 
         const session = await this.createSession(student, req);
@@ -108,7 +108,7 @@ export class AuthService {
     }
 
 
-    
+
     async login(dto: LoginRequestDto, req: Request) {
         const user = await this.prisma.user.findUnique({
             where: { email: dto.email },
@@ -125,7 +125,7 @@ export class AuthService {
         }
 
         await this.userStatusService.setOnline(user.id);
-        
+
         const session = await this.createSession(user, req);
 
         const userWithoutPassword = removeFields(user, ["password"]);
@@ -214,8 +214,8 @@ export class AuthService {
     ) {
         const refreshToken = generateRefreshToken();
         //!
-         console.time("argon2")
-    
+        console.time("argon2")
+
         const refreshTokenHash = await argon2.hash(refreshToken);
 
         console.timeEnd("argon2");
@@ -224,7 +224,7 @@ export class AuthService {
         const ipAddress = req.ip ?? "unknown";
 
         const deviceInfo = this.deviceDetectionService.detectDeviceInfo(userAgent);
-        
+
         const session = await this.prisma.session.create({
             data: {
                 userId: user.id,
@@ -237,17 +237,17 @@ export class AuthService {
             },
         });
 
-        
+
         // get all active sessions
         const activeSessions = await this.prisma.session.findMany({
             where: {
                 userId: user.id,
                 revokedAt: null,
             },
-            select: { 
+            select: {
                 deviceType: true,
                 userAgent: true
-             },
+            },
         });
 
         const knownDevice = activeSessions.some(
@@ -266,7 +266,7 @@ export class AuthService {
         //     (s) => s.userAgent === userAgent,
         // );
 
-      
+
         console.time("email");
 
 
@@ -282,8 +282,8 @@ export class AuthService {
                         email: user.email,
                         firstName: user.firstName,
                     },
-                    deviceInfo,      
-                    ipAddress, 
+                    deviceInfo,
+                    ipAddress,
                 ),
             );
         }
@@ -304,7 +304,7 @@ export class AuthService {
                 role: user.role,
                 sid: session.id,
             },
-            { expiresIn: "15min" },
+            { expiresIn: "1d" },
         );
 
 
@@ -383,7 +383,7 @@ export class AuthService {
                 role: matchedSession.userId,
                 sid: matchedSession.id,
             },
-            { expiresIn: "15min" },
+            { expiresIn: "1d" },
         );
 
         return {
@@ -396,7 +396,7 @@ export class AuthService {
 
 
     // async logout(dto: LogoutDto) {
-        
+
     //     await this.prisma.session.updateMany({
     //         where: {
     //             refreshTokenHash : dto.refreshToken ,
@@ -422,9 +422,9 @@ export class AuthService {
     async logout(userId: number, sessionId?: string) {
         console.log(`🔴 Logout attempt for userId: ${userId}, sessionId: ${sessionId}`);
 
-           if (!sessionId) {
-        throw new UnauthorizedException('Session ID not found in token');
-    }
+        if (!sessionId) {
+            throw new UnauthorizedException('Session ID not found in token');
+        }
 
 
         const session = await this.prisma.session.findFirst({
@@ -467,7 +467,7 @@ export class AuthService {
 
         await this.userStatusService.setOffline(userId);
 
-        
+
 
         return {
             success: true,
@@ -520,7 +520,7 @@ export class AuthService {
             sessions,
         };
     }
-    
+
 
 
     async revokeSession(userId: number, sessionId: string) {
