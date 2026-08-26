@@ -10,6 +10,7 @@ export const UpdateStudentProfileSchema = z
         // major: z.string().min(1).optional(),
         // academicYear: z.coerce.number().int().positive().optional(),
         gpa: z.number().min(0).max(4).optional().nullable(),
+        phone: z.string().optional(), 
         profileImage: z.string().optional().nullable(),
         cvFile: z.string().optional().nullable(),
         recoveryEmail: z.string().email().nullable().optional(),
