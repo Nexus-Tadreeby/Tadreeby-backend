@@ -23,16 +23,16 @@ import { UserStatusService } from 'src/common/services/UserStatus.service';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '15min' },
+        signOptions: { expiresIn: '1d' },
       }),
     }),
   ],
   controllers: [AuthController],
   providers: [
-    AuthService, 
-    JwtStrategy, 
-    ForgetPasswordService, 
-    DeviceDetectionService, 
+    AuthService,
+    JwtStrategy,
+    ForgetPasswordService,
+    DeviceDetectionService,
     UserStatusService
   ],
 })
