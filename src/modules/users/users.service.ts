@@ -10,8 +10,8 @@ import { convertBigIntFields } from 'src/common/utils/bigint.util';
 export class UsersService {
   constructor(private readonly prisma: DatabaseService) { }
 
-
-
+  
+  
 
   async getAllUsers(query: UserQueryType): Promise<PaginationResult<any>> {
     const {
@@ -80,11 +80,11 @@ export class UsersService {
             select: { id: true, name: true, shortCode: true },
           },
           studentProfile: {
-            select: {
+            select: { 
               major: true,
               studentNumber: true,
               approvalStatus: true,
-            },
+             },
           },
         },
       }),
@@ -103,7 +103,7 @@ export class UsersService {
         }
         : null,
     }));
-
+    
     const totalPages = Math.ceil(total / limit);
 
     return {
@@ -120,24 +120,6 @@ export class UsersService {
   }
 
 
-
-  async updateCurrentUserStatus(userId: number, status: 'ONLINE' | 'OFFLINE' | 'AWAY' | 'BUSY') {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
-
-    const updated = await this.prisma.userStatus.upsert({
-      where: { userId },
-      update: { status, lastSeen: new Date() },
-      create: { userId, status, lastSeen: new Date() },
-    });
-
-    return {
-      userId,
-      status: updated.status,
-      lastSeen: updated.lastSeen,
-      updatedAt: updated.updatedAt,
-    };
-  }
 
   async getUserById(id: number) {
     const user = await this.prisma.user.findUnique({
@@ -238,7 +220,7 @@ export class UsersService {
     return convertBigIntFields(result);
   }
 
-
+  
   // async deactivateUser(id: number) {
   //   const user = await this.prisma.user.findUnique({ where: { id } });
   //   if (!user) throw new NotFoundException('User not found');
@@ -293,7 +275,7 @@ export class UsersService {
       updatedAt,
     };
   }
-
+  
 
 
   // async activateUser(id: number) {
@@ -309,7 +291,7 @@ export class UsersService {
 
 
   async activateUser(id: number) {
-
+    
     const user = await this.prisma.user.findUnique({
       where: { id },
       select: {
@@ -355,9 +337,9 @@ export class UsersService {
     // await this.prisma.user.delete({ where: { id } });
     // return { success: true, message: 'User deleted successfully' };
 
-
+    
     await this.prisma.$transaction(async (tx) => {
-
+    
       await tx.session.deleteMany({ where: { userId: id } });
       await tx.notification.deleteMany({ where: { userId: id } });
       await tx.passwordResetCode.deleteMany({ where: { userId: id } });
@@ -404,41 +386,41 @@ export class UsersService {
     return { success: true, message: 'User deleted successfully' };
   }
 
+  
 
 
 
+//   async getProfile(userId: number) {
+//     const user = await this.prisma.user.findUnique({
+//       where: { id: userId },
+//       select: {
+//         id: true,
+//         firstName: true,
+//         lastName: true,
+//         email: true,
+//         phone: true,
+//         role: true,
+//         isActive: true,
+//         universityId: true,
+//         companyId: true,
+//         createdAt: true,
+//         recoveryEmail: true,
+//         profileImage: true,
+//         personalID: true,
+//       },
+//     });
 
-  //   async getProfile(userId: number) {
-  //     const user = await this.prisma.user.findUnique({
-  //       where: { id: userId },
-  //       select: {
-  //         id: true,
-  //         firstName: true,
-  //         lastName: true,
-  //         email: true,
-  //         phone: true,
-  //         role: true,
-  //         isActive: true,
-  //         universityId: true,
-  //         companyId: true,
-  //         createdAt: true,
-  //         recoveryEmail: true,
-  //         profileImage: true,
-  //         personalID: true,
-  //       },
-  //     });
+//     if (!user) throw new NotFoundException('User not found');
 
-  //     if (!user) throw new NotFoundException('User not found');
+//     const settings = {
+//       notifications: { email: true, push: true, system: true },
+//       language: 'en' as const,
+//       theme: 'light' as const,
+//       timezone: 'Asia/Gaza',
+//     };
 
-  //     const settings = {
-  //       notifications: { email: true, push: true, system: true },
-  //       language: 'en' as const,
-  //       theme: 'light' as const,
-  //       timezone: 'Asia/Gaza',
-  //     };
-
-  //     return { profile: user, settings };
-  //   }
+//     return { profile: user, settings };
+//   }
 
 
 
@@ -494,7 +476,7 @@ export class UsersService {
   }
 
 
-
+  
 
   // async getUsersByRole(role: UserRole) {
   //   return this.prisma.user.findMany({
@@ -542,7 +524,7 @@ export class UsersService {
       'COMP_ADMIN': UserRole.COMPANY_ADMIN,
       'SUPERVISOR': UserRole.UNIVERSITY_SUPERVISOR,
       'TRAINER': UserRole.COMPANY_TRAINER,
-      'STUD': UserRole.STUDENT,
+      'STUD': UserRole.STUDENT, 
       'STD': UserRole.STUDENT,
 
 
@@ -586,7 +568,7 @@ export class UsersService {
         lastName: true,
         email: true,
         phone: true,
-        role: true,
+        role : true,
         isActive: true,
         university: {
           select: { id: true, name: true },
@@ -636,7 +618,7 @@ export class UsersService {
   }
 
 
-
+  
 
   async getUsersByUniversity(universityId: number) {
     return this.prisma.user.findMany({
@@ -763,7 +745,7 @@ export class UsersService {
     const userStatus = await this.prisma.userStatus.upsert({
       where: { userId },
       update: {
-        status,
+        status,           
         lastSeen: new Date(),
       },
       create: {
@@ -772,7 +754,7 @@ export class UsersService {
         lastSeen: new Date(),
       },
       select: {
-        updatedAt: true,
+        updatedAt: true, 
       },
     });
 

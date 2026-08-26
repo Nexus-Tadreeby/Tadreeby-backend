@@ -173,10 +173,10 @@ model UserActivityLog {
 //! User status model (for lastseen & online status)
 
 model UserStatus {
-  userId    Int        @id
-  status    StatusType @default(OFFLINE)
-  lastSeen  DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  userId   Int        @id
+  status   StatusType @default(OFFLINE)
+  lastSeen DateTime   @default(now())
+  updatedAt DateTime  @updatedAt 
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -308,12 +308,10 @@ model StudentProfile {
   rejectionReason      String?
   skills               String?
 
-  applications    Application[]
   internships     InternshipStudent[]
   attendance      Attendance[]
   evaluations     Evaluation[]
   taskSubmissions TaskSubmission[]
-  supervisedBy    SupervisorStudent[]
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
@@ -334,27 +332,11 @@ model UniversitySupervisorProfile {
   universityId Int
   department   String?
 
-  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  university University?         @relation(fields: [universityId], references: [id], onDelete: Cascade)
-  students   SupervisorStudent[]
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  university University? @relation(fields: [universityId], references: [id], onDelete: Cascade)
 }
 
-model SupervisorStudent {
-  id           Int      @id @default(autoincrement())
-  supervisorId Int
-  studentId    Int
-  assignedAt   DateTime @default(now())
-  notes        String?
-
-  supervisor UniversitySupervisorProfile @relation(fields: [supervisorId], references: [userId], onDelete: Cascade)
-  student    StudentProfile              @relation(fields: [studentId], references: [userId], onDelete: Cascade)
-
-  @@unique([supervisorId, studentId])
-  @@index([supervisorId])
-  @@index([studentId])
-}
-
-//! Company Trainer Profile Model
+// ! Company Trainer Profile Model
 
 model CompanyTrainerProfile {
   userId         Int     @id
@@ -381,29 +363,10 @@ model TrainingOpportunity {
   isActive       Boolean      @default(true)
   type           TrainingType @default(ONSITE)
 
-  applications Application[]
-  internships  Internship[]
+  // internship  Internship? @relation("OppToInternship")
+  internships Internship[]
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-}
-
-model Application {
-  id              Int               @id @default(autoincrement())
-  opportunityId   Int
-  studentId       Int
-  status          ApplicationStatus @default(PENDING)
-  rejectionReason String?
-  appliedAt       DateTime          @default(now())
-  reviewedAt      DateTime?
-  updatedAt       DateTime          @updatedAt
-
-  opportunity TrainingOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
-  student     StudentProfile      @relation(fields: [studentId], references: [userId], onDelete: Cascade)
-
-  @@index([opportunityId])
-  @@index([studentId])
-  @@index([status])
-  @@index([opportunityId, status])
 }
 
 // ! Internship Model
@@ -439,7 +402,7 @@ model Internship {
 // ! Internship Student Model
 
 model InternshipStudent {
-  id           Int      @id @default(autoincrement())
+  id           Int @id @default(autoincrement())
   internshipId Int
   studentId    Int
   createdAt    DateTime @default(now())
