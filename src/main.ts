@@ -1,11 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import * as bodyParser from 'body-parser';
+
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.useGlobalFilters(new AllExceptionsFilter());
   // app.use(bodyParser.json({ limit: '10mb' }));
   // app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
@@ -39,7 +39,7 @@ async function bootstrap() {
   // });
 
   app.enableCors({
-    origin: true,
+    origin: true, 
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
