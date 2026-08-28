@@ -14,6 +14,7 @@ import { UpdateStudentProfileDto } from './dto/update-student-profile.dto';
 import { UpdateStudentProfileSchema } from './validation/update-student-profile.validation.schema';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { cvMulterConfig } from 'src/common/config/multer.config';
+import { CheckOutDto } from './dto/check-out.dto';
 
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -214,7 +215,25 @@ export class StudentController {
   }
 
 
-
+  @Patch('attendance/check-out')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles([UserRole.STUDENT])
+  @ApiOperation({ summary: 'Check out from current session (forced to 4 PM)' })
+  async checkOut(
+    @AuthedUser() user: authedUserType,
+    @Body() dto: CheckOutDto, 
+  ) {
+    const data = await this.studentService.checkOut(user.id);
+    return { success: true, data, message: 'Checked out successfully at 4:00 PM' };
+  }
+  // @Patch('attendance/check-out')
+  // @UseGuards(JwtAuthGuard, RolesGuard)
+  // @Roles([UserRole.STUDENT])
+  // @ApiOperation({ summary: 'Check out from current session' })
+  // async checkOut(@AuthedUser() user: authedUserType) {
+  //   const data = await this.studentService.checkOut(user.id);
+  //   return { success: true, data, message: 'Checked out successfully' };
+  // }
 
 
   @Get('evaluations')

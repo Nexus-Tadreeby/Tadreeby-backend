@@ -449,12 +449,12 @@ export class StudentService {
       where: { userId },
       data: { cvUrl: cvFile },
       select: {
+        userId: true,
+        cvUrl: true,
         user: {
           select: {
             recoveryEmail: true,
           },
-        userId: true,
-        cvUrl: true,
         },
       },
     });
@@ -468,12 +468,12 @@ export class StudentService {
       where: { userId },
       data: { cvUrl: null },
       select: {
+        userId: true,
+        cvUrl: true,
         user: {
          select: {
            recoveryEmail: true,
          },
-        userId: true,
-        cvUrl: true,
         },
       },
     });
@@ -611,7 +611,8 @@ export class StudentService {
 
 
   async getInternships(userId: number) {
-    return this.prisma.internshipStudent.findMany({
+    console.log('🔍 getInternships called with userId:', userId);
+    const result = await this.prisma.internshipStudent.findMany({
       where: { studentId: userId },
       include: {
         internship: {
@@ -623,6 +624,8 @@ export class StudentService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    console.log('📦 Found internships:', result.length);
+    return result;
   }
 
 
@@ -766,6 +769,125 @@ export class StudentService {
 
 
 
+  // async checkOut(studentId: number) {
+  //   const now = new Date();
+
+  //   // ✅ Set checkout time to 4:00 PM of the current day
+  //   const checkoutTime = new Date(now);
+  //   checkoutTime.setHours(16, 0, 0, 0); // 4:00 PM
+
+  //   // Find active attendance record
+  //   let attendance = await this.prisma.attendance.findFirst({
+  //     where: {
+  //       studentId,
+  //       status: 'CHECKED_IN',
+  //     },
+  //     orderBy: { date: 'desc' },
+  //   });
+
+  //   // If no active record, create a new one (force checkout)
+  //   if (!attendance) {
+  //     const internshipStudent = await this.prisma.internshipStudent.findFirst({
+  //       where: { studentId },
+  //       include: { internship: true },
+  //     });
+
+  //     if (!internshipStudent) {
+  //       throw new NotFoundException('No internship found for this student.');
+  //     }
+
+  //     attendance = await this.prisma.attendance.create({
+  //       data: {
+  //         internshipId: internshipStudent.internshipId,
+  //         studentId,
+  //         date: new Date(),
+  //         checkOut: checkoutTime,
+  //         duration: '0h 0m',
+  //         status: 'CHECKED_OUT',
+  //       },
+  //       include: {
+  //         internship: {
+  //           include: {
+  //             opportunity: true,
+  //             company: true,
+  //           },
+  //         },
+  //       },
+  //     });
+
+  //     return convertBigIntFields(attendance);
+  //   }
+
+  //   // Calculate duration
+  //   const durationMs = checkoutTime.getTime() - attendance.date.getTime();
+  //   const hours = Math.floor(durationMs / (1000 * 60 * 60));
+  //   const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+  //   const durationStr = `${hours}h ${minutes}m`;
+
+  //   // Update existing record
+  //   const updated = await this.prisma.attendance.update({
+  //     where: { id: attendance.id },
+  //     data: {
+  //       checkOut: checkoutTime,
+  //       duration: durationStr,
+  //       status: 'CHECKED_OUT',
+  //     },
+  //     include: {
+  //       internship: {
+  //         include: {
+  //           opportunity: true,
+  //           company: true,
+  //         },
+  //       },
+  //     },
+  //   });
+
+  //   return convertBigIntFields(updated);
+  // }
+
+
+
+  // src/modules/student/student.service.ts
+
+  async checkOut(studentId: number) {
+    const now = new Date();
+
+    const attendance = await this.prisma.attendance.findFirst({
+      where: {
+        studentId,
+        status: 'CHECKED_IN',
+      },
+      orderBy: { date: 'desc' },
+    });
+
+    if (!attendance) {
+      throw new NotFoundException('No active check‑in found for today. Please check in first.');
+    }
+
+    const durationMs = now.getTime() - attendance.date.getTime();
+    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+    const durationStr = `${hours}h ${minutes}m`;
+
+    const updated = await this.prisma.attendance.update({
+      where: { id: attendance.id },
+      data: {
+        checkOut: now,         
+        duration: durationStr,
+        status: 'CHECKED_OUT',
+      },
+      include: {
+        internship: {
+          include: {
+            opportunity: true,
+            company: true,
+          },
+        },
+      },
+    });
+
+    return convertBigIntFields(updated);
+  }
 
 
   async getEvaluations(userId: number) {

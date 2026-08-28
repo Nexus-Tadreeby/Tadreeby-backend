@@ -497,6 +497,8 @@ model Attendance {
   internshipId Int
   studentId    Int
   date         DateTime
+  checkOut     DateTime?
+  duration     String?
   status       AttendanceStatus
 
   internship Internship     @relation(fields: [internshipId], references: [id], onDelete: Cascade)
