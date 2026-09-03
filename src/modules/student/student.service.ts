@@ -9,6 +9,7 @@ import { removeFields } from '../../common/utils/object.util';
 import { AuthUserResponse } from 'src/common/types/unifiedType.types';
 import { UpdateStudentProfileDto } from './dto/update-student-profile.dto';
 import { convertBigIntFields } from 'src/common/utils/bigint.util';
+import { FilesService, FileType } from '../files/files.service';
 
 @Injectable()
 export class StudentService {
@@ -17,6 +18,7 @@ export class StudentService {
   constructor(
     private readonly prisma: DatabaseService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly filesService: FilesService,
   ) { }
 
 
@@ -150,8 +152,15 @@ export class StudentService {
 
     if (!profile) throw new NotFoundException('Student profile not found');
     // return profile;
-    return convertBigIntFields(profile);
+    const transformed = {
+      ...profile,
+      university: profile.university?.name || null,
+    };
+    return convertBigIntFields(transformed);
   }
+
+
+
 
   async updateProfile(userId: number, dto: UpdateStudentProfileDto) {
     const profile = await this.prisma.studentProfile.findUnique({
@@ -471,9 +480,9 @@ export class StudentService {
         userId: true,
         cvUrl: true,
         user: {
-         select: {
-           recoveryEmail: true,
-         },
+          select: {
+            recoveryEmail: true,
+          },
         },
       },
     });
@@ -575,7 +584,7 @@ export class StudentService {
 
 
 
-  async reuploadDocument(userId: number, verificationDocument: string) {
+  async reuploadDocument(userId: number, file: Express.Multer.File) {
     const profile = await this.prisma.studentProfile.findUnique({ where: { userId } });
     if (!profile) throw new ConflictException('Profile not found');
 
@@ -586,10 +595,16 @@ export class StudentService {
       throw new ConflictException('Cannot reupload document unless status is PENDING or REJECTED');
     }
 
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { firstName: true, lastName: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
     const updated = await this.prisma.studentProfile.update({
       where: { userId },
       data: {
-        verificationDocument,
+        verificationDocument: `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
         approvalStatus: StudentApprovalStatus.PENDING,
         rejectionReason: null,
         approvedAt: null,
@@ -683,26 +698,165 @@ export class StudentService {
 
 
 
-  async getTasks(userId: number) {
+  // async getTasks(userId: number) {
+  //   return this.prisma.task.findMany({
+  //     where: {
+  //       internship: {
+  //         students: {
+  //           some: {
+  //             studentId: userId,
+  //           },
+  //         },
+  //       },
+  //     },
+  //     include: {
+  //       submissions: {
+  //         where: { studentId: userId },
+  //       },
+  //     },
+  //     orderBy: { deadline: 'asc' },
+  //   });
+  // }
+
+
+
+  async getTasks(studentId: number) {
     return this.prisma.task.findMany({
       where: {
         internship: {
           students: {
             some: {
-              studentId: userId,
+              studentId,
             },
           },
         },
       },
+
       include: {
+        internship: true,
+
         submissions: {
-          where: { studentId: userId },
+          where: {
+            studentId,
+          },
         },
       },
-      orderBy: { deadline: 'asc' },
+
+      orderBy: [
+        {
+          deadline: 'asc',
+        },
+        {
+          id: 'desc',
+        },
+      ],
     });
   }
 
+
+  async getTask(
+    studentId: number,
+    taskId: number,
+  ) {
+    const task = await this.prisma.task.findFirst({
+      where: {
+        id: taskId,
+
+        internship: {
+          students: {
+            some: {
+              studentId,
+            },
+          },
+        },
+      },
+
+      include: {
+        internship: true,
+
+        submissions: {
+          where: {
+            studentId,
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException(
+        'Task not found',
+      );
+    }
+
+    return task;
+  }
+
+
+  async getTaskSubmission(
+    studentId: number,
+    taskId: number,
+  ) {
+    const task = await this.getTask(
+      studentId,
+      taskId,
+    );
+
+    return task.submissions[0] ?? null;
+  }
+
+
+
+
+
+  private async saveStudentTaskFile(
+    studentId: number,
+    taskId: number,
+    file: Express.Multer.File,
+  ): Promise<string> {
+    const result = await this.filesService.uploadFile(
+      file,
+      FileType.TASK,
+      studentId,
+      'Student',
+      `${taskId}`,
+    );
+    return result.url;
+  }
+
+
+  async submitTask(
+    studentId: number,
+    taskId: number,
+    file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+
+    // جلب المهمة مع التسليمات الحالية
+    const task = await this.getTask(studentId, taskId);
+
+    // التأكد من عدم وجود تسليم مسبق (تسليم واحد لكل مهمة)
+    if (task.submissions.length > 0) {
+      throw new BadRequestException('You have already submitted this task');
+    }
+
+    // حفظ الملف والحصول على الرابط
+    const fileUrl = await this.saveStudentTaskFile(studentId, taskId, file);
+
+    // إنشاء سجل التسليم في قاعدة البيانات
+    const submission = await this.prisma.taskSubmission.create({
+      data: {
+        taskId,
+        studentId,
+        fileUrl,
+        submittedAt: new Date(),
+      },
+    });
+
+    // إرجاع التسليم مع تحويل BigInt إلى Number
+    return convertBigIntFields(submission);
+  }
 
 
   async getAttendance(userId: number) {
@@ -872,7 +1026,7 @@ export class StudentService {
     const updated = await this.prisma.attendance.update({
       where: { id: attendance.id },
       data: {
-        checkOut: now,         
+        checkOut: now,
         duration: durationStr,
         status: 'CHECKED_OUT',
       },
@@ -916,6 +1070,45 @@ export class StudentService {
 
 
 
+  // async getDashboard(userId: number) {
+  //   const [profile, internships, tasks, attendance, evaluations] = await Promise.all([
+  //     this.getProfile(userId),
+  //     this.getInternships(userId),
+  //     this.getTasks(userId),
+  //     this.getAttendance(userId),
+  //     this.getEvaluations(userId),
+  //     this.getActivityFeed(userId),
+  //   ]);
+
+  //   // Calculate stats
+  //   const stats = {
+  //     totalInternships: internships.length,
+  //     totalTasks: tasks.length,
+  //     totalAttendance: attendance.length,
+  //     totalEvaluations: evaluations.length,
+  //     pendingTasks: tasks.filter(t => t.status === TaskStatus.TODO).length,
+  //     inProgressTasks: tasks.filter(t => t.status === TaskStatus.IN_PROGRESS).length,
+  //     completedTasks: tasks.filter(t => t.status === TaskStatus.DONE).length,
+  //     todayAttendance: attendance.filter(a => {
+  //       const today = new Date();
+  //       return a.date.getDate() === today.getDate() &&
+  //         a.date.getMonth() === today.getMonth() &&
+  //         a.date.getFullYear() === today.getFullYear();
+  //     }).length,
+  //     averageScore: evaluations.reduce((acc, e) => acc + (e.score || 0), 0) / (evaluations.length || 1),
+  //   };
+
+  //   return {
+  //     profile,
+  //     internships,
+  //     tasks,
+  //     attendance,
+  //     evaluations,
+  //     stats,
+  //   };
+  // }
+
+
   async getDashboard(userId: number) {
     const [profile, internships, tasks, attendance, evaluations] = await Promise.all([
       this.getProfile(userId),
@@ -926,7 +1119,6 @@ export class StudentService {
       this.getActivityFeed(userId),
     ]);
 
-    // Calculate stats
     const stats = {
       totalInternships: internships.length,
       totalTasks: tasks.length,

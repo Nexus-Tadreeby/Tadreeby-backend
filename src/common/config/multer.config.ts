@@ -1,14 +1,7 @@
 // common/config/multer.config.ts
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { extname } from 'path';
 import { BadRequestException } from '@nestjs/common';
-import * as fs from 'fs';
-
-
-const uploadPath = './uploads/pending';
-if (!fs.existsSync(uploadPath)) {
-    fs.mkdirSync(uploadPath, { recursive: true });
-}
 
 // 5MB limit for verification documents, profile images, and logos
 const SMALL_FILE_LIMIT = 5 * 1024 * 1024;
@@ -17,23 +10,7 @@ const SMALL_FILE_LIMIT = 5 * 1024 * 1024;
 const LARGE_FILE_LIMIT = 10 * 1024 * 1024;
 
 export const multerConfig = {
-    storage: diskStorage({
-        destination: (req, file, callback) => {
-
-            const path = process.env.UPLOAD_PATH || './uploads/pending';
-
-            if (!fs.existsSync(path)) {
-                fs.mkdirSync(path, { recursive: true });
-            }
-            callback(null, path);
-        },
-        filename: (req, file, callback) => {
-            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-            const ext = extname(file.originalname);
-            const fileName = `student-doc-${uniqueSuffix}${ext}`;
-            callback(null, fileName);
-        },
-    }),
+    storage: memoryStorage(),
     limits: {
         fileSize: SMALL_FILE_LIMIT, // 5MB for registration verification documents
     },

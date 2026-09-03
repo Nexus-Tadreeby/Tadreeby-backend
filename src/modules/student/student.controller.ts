@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { StudentService } from './student.service';
 import { RegisterStudentDto } from './dto/register-student.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -13,7 +13,7 @@ import { ZodValidationPipe } from 'src/common/pipes/zod.pipe';
 import { UpdateStudentProfileDto } from './dto/update-student-profile.dto';
 import { UpdateStudentProfileSchema } from './validation/update-student-profile.validation.schema';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { cvMulterConfig } from 'src/common/config/multer.config';
+import { cvMulterConfig, verificationDocMulterConfig } from 'src/common/config/multer.config';
 import { CheckOutDto } from './dto/check-out.dto';
 
 @ApiBearerAuth()
@@ -77,9 +77,15 @@ export class StudentController {
   @UseGuards(JwtAuthGuard)
   @Patch('profile/reupload-document')
   @ProfileOnly()
-  async reupload(@Req() req: any, @Body('verificationDocument') verificationDocument: string) {
-    const userId = req.user?.sub ?? req.user?.id ?? null;
-    return this.studentService.reuploadDocument(userId, verificationDocument);
+  @UseInterceptors(FileInterceptor('verificationDocument', verificationDocMulterConfig))
+  async reupload(
+    @AuthedUser() user: authedUserType,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Verification document is required');
+    }
+    return this.studentService.reuploadDocument(user.id, file);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -179,15 +185,118 @@ export class StudentController {
 
 
 
+  // @Get('tasks')
+  // @UseGuards(JwtAuthGuard, RolesGuard)
+  // @Roles([UserRole.STUDENT])
+  // @ApiOperation({ summary: 'Get student tasks' })
+  // async getTasks(@AuthedUser() user: authedUserType) {
+  //   const data = await this.studentService.getTasks(user.id);
+  //   return { success: true, data };
+  // }
+
   @Get('tasks')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles([UserRole.STUDENT])
-  @ApiOperation({ summary: 'Get student tasks' })
-  async getTasks(@AuthedUser() user: authedUserType) {
-    const data = await this.studentService.getTasks(user.id);
-    return { success: true, data };
+  @Roles(UserRole.STUDENT)
+  @ApiOperation({
+    summary: 'Get tasks assigned to the student',
+  })
+  async getTasks(
+    @AuthedUser() user: any,
+  ) {
+    const data =
+      await this.studentService.getTasks(user.id);
+
+    return {
+      success: true,
+      data,
+    };
   }
 
+  @Get('tasks/:id')
+  @Roles(UserRole.STUDENT)
+  @ApiOperation({
+    summary: 'Get one assigned task',
+  })
+  async getTask(
+    @Param('id') id: string,
+    @AuthedUser() user: any,
+  ) {
+    const data =
+      await this.studentService.getTask(
+        user.id,
+        Number(id),
+      );
+
+    return {
+      success: true,
+      data,
+    };
+  }
+
+  @Get('tasks/:id/submission')
+  @Roles(UserRole.STUDENT)
+  @ApiOperation({
+    summary: 'Get student submission for a task',
+  })
+  async getTaskSubmission(
+    @Param('id') id: string,
+    @AuthedUser() user: any,
+  ) {
+    const data =
+      await this.studentService.getTaskSubmission(
+        user.id,
+        Number(id),
+      );
+
+    return {
+      success: true,
+      data,
+    };
+  }
+
+  // @Post('tasks/:id/submission')
+  // @Roles(UserRole.STUDENT)
+  // @UseInterceptors(
+  //   FileInterceptor('file'),
+  // )
+  // @ApiOperation({
+  //   summary: 'Submit report or assignment',
+  // })
+  // async submitTask(
+  //   @Param('id') id: string,
+  //   @UploadedFile() file: Express.Multer.File,
+  //   @AuthedUser() user: any,
+  // ) {
+  //   const data =
+  //     await this.studentService.submitTask(
+  //       user.id,
+  //       Number(id),
+  //       file,
+  //     );
+
+  //   return {
+  //     success: true,
+  //     data,
+  //     message: 'Task submitted successfully',
+  //   };
+  // }
+
+
+  @Post('tasks/:id/submission')
+  @Roles(UserRole.STUDENT)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Submit a task (file upload)' })
+  async submitTask(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @AuthedUser() user: any,
+  ) {
+    const data = await this.studentService.submitTask(user.id, Number(id), file);
+    return {
+      success: true,
+      data,
+      message: 'Task submitted successfully',
+    };
+  }
 
 
 
@@ -221,7 +330,7 @@ export class StudentController {
   @ApiOperation({ summary: 'Check out from current session (forced to 4 PM)' })
   async checkOut(
     @AuthedUser() user: authedUserType,
-    @Body() dto: CheckOutDto, 
+    @Body() dto: CheckOutDto,
   ) {
     const data = await this.studentService.checkOut(user.id);
     return { success: true, data, message: 'Checked out successfully at 4:00 PM' };

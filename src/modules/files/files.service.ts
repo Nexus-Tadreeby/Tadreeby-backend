@@ -41,6 +41,15 @@ export class FilesService {
     return `${baseUrl}/api/v1/files/${type}/${userId}/${filename}`;
   }
 
+  async movePendingVerification(userId: number, filename: string): Promise<void> {
+    const basePath = process.env.UPLOAD_PATH || './uploads';
+    const sourcePath = path.join(basePath, 'pending', filename);
+    const targetPath = this.getFilePath(FileType.VERIFICATION, userId, filename);
+
+    this.ensureFolderExists(path.dirname(targetPath));
+    await fs.promises.rename(sourcePath, targetPath);
+  }
+
 
   //* UPLOAD FILE
 

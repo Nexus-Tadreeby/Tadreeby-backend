@@ -14,13 +14,10 @@ import {
     UploadedFile,
 } from "@nestjs/common";
 import { FileInterceptor } from '@nestjs/platform-express';
-import * as fs from 'fs';
-import * as path from 'path';
 
 import express from "express";
 
 import { AuthService } from "./auth.service";
-import { generateFileName, FileTypeLabel } from "../../common/utils/file-naming.util";
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 
 import { studentRegisterSchema, type studentRegisterSchemaDto } from "../student/validation/student.register.validation.schema";
@@ -99,23 +96,9 @@ export class AuthController {
             throw new BadRequestException('Verification document is required');
         }
 
-        // Generate new filename with student name + file type
-        const newFilename = generateFileName(
-            body.firstName,
-            body.lastName,
-            FileTypeLabel.VERIFICATION,
-            file.originalname,
-        );
-
-        // Rename the uploaded file
-        const uploadDir = process.env.UPLOAD_PATH || './uploads/pending';
-        const oldPath = path.join(uploadDir, file.filename);
-        const newPath = path.join(uploadDir, newFilename);
-        fs.renameSync(oldPath, newPath);
-
         const dtoData = {
             ...body,
-            verificationDocument: newFilename,
+            verificationDocument: `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
         };
 
         const validatedDto = studentRegisterSchema.parse(dtoData);
