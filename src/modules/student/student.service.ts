@@ -187,6 +187,7 @@ export class StudentService {
     // if (dto.lastName) userUpdateData.lastName = dto.lastName;
     if (dto.phone) userUpdateData.phone = dto.phone;
     if (dto.profileImage !== undefined) userUpdateData.profileImage = dto.profileImage;
+    if (dto.recoveryEmail !== undefined) userUpdateData.recoveryEmail = dto.recoveryEmail;
 
     if (Object.keys(userUpdateData).length > 0) {
       await this.prisma.user.update({
@@ -201,7 +202,6 @@ export class StudentService {
     // if (dto.academicYear !== undefined) studentUpdateData.academicYear = dto.academicYear;
     if (dto.gpa !== undefined) studentUpdateData.gpa = dto.gpa;
     if (dto.cvFile) studentUpdateData.cvUrl = dto.cvFile; // store base64
-    if (dto.recoveryEmail !== undefined) userUpdateData.recoveryEmail = dto.recoveryEmail; // ✅ جديد
 
     const updated = await this.prisma.studentProfile.update({
       where: { userId },
@@ -226,7 +226,6 @@ export class StudentService {
       },
     });
 
-    // ✅ Convert BigInt AND return the data
     return convertBigIntFields(updated);
   }
 
