@@ -12,7 +12,9 @@ export class UniversityAdminService {
         const [students, supervisors, internships, pendingApprovals] = await Promise.all([
             this.prisma.studentProfile.count({ where: { universityId } }),
             this.prisma.universitySupervisorProfile.count({ where: { universityId } }),
-            this.prisma.internship.count({ where: { universityId } }),
+            this.prisma.internshipStudent.count({
+                where: { student: { universityId } },
+            }),
             this.prisma.studentProfile.count({
                 where: { universityId, approvalStatus: 'PENDING' },
             }),

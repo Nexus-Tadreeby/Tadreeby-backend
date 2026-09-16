@@ -91,9 +91,9 @@ export class UniversityService {
       'id': 'id',
       'name': 'name',
       'shortCode': 'shortCode',
-      'createdAt': 'createdAt',    
-      'updatedAt': 'updatedAt',    
-      'isActive': 'isActive',     
+      'createdAt': 'createdAt',
+      'updatedAt': 'updatedAt',
+      'isActive': 'isActive',
     };
 
     const sortField = validSortFields[sortBy] || 'createdAt';
@@ -161,7 +161,6 @@ export class UniversityService {
             users: true,
             students: true,
             supervisors: true,
-            internships: true,
           },
         },
       },
@@ -180,14 +179,14 @@ export class UniversityService {
 
     if (currentUser.role === UserRole.UNIVERSITY_ADMIN) {
       //to ensure the UNI ADMIN updates his own university
-        if (currentUser.universityId !== id) {
+      if (currentUser.universityId !== id) {
         throw new ForbiddenException('You can only update your own university');
       }
       delete dto.name;
       delete dto.shortCode;
     }
 
-    
+
     if (dto.shortCode || dto.name) {
       const exists = await this.prisma.university.findFirst({
         where: {
@@ -290,12 +289,12 @@ export class UniversityService {
             role: true,
           },
         },
-        internships: {
-          select: {
-            status: true,
-          },
-        },
       },
+    });
+
+    const internships = await this.prisma.internshipStudent.findMany({
+      where: { student: { universityId: id } },
+      select: { internship: { select: { id: true, status: true } } },
     });
 
     const userRoles = stats?.users.reduce((acc, user) => {
@@ -303,8 +302,9 @@ export class UniversityService {
       return acc;
     }, {} as Record<string, number>);
 
-    const internshipStatuses = stats?.internships.reduce((acc, internship) => {
-      acc[internship.status] = (acc[internship.status] || 0) + 1;
+    const internshipStatuses = internships.reduce((acc, enrollment) => {
+      const status = enrollment.internship.status;
+      acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
@@ -312,7 +312,7 @@ export class UniversityService {
       totalUsers: stats?._count.users || 0,
       totalStudents: stats?._count.students || 0,
       totalSupervisors: stats?._count.supervisors || 0,
-      totalInternships: stats?._count.internships || 0,
+      totalInternships: new Set(internships.map(({ internship }) => internship.id)).size,
       userRoles,
       internshipStatuses,
     };
@@ -375,7 +375,7 @@ export class UniversityService {
     };
   }
 
-  
+
 }
 
 
