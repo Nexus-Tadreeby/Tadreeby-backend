@@ -147,14 +147,66 @@ export class StudentService {
             shortCode: true,
           },
         },
+        internships: {
+          where: { internship: { status: InternshipStatus.ACTIVE } },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: {
+            internship: {
+              include: {
+                trainer: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                    phone: true,
+                    profileImage: true,
+                  },
+                },
+                opportunity: {
+                  select: {
+                    id: true,
+                    title: true,
+                    duration: true,
+                    type: true,
+                  },
+                },
+                company: {
+                  select: {
+                    id: true,
+                    name: true,
+                    shortCode: true,
+                    logo: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
     if (!profile) throw new NotFoundException('Student profile not found');
-    // return profile;
+    const currentEnrollment = profile.internships[0];
+    const { internships, ...profileData } = profile;
     const transformed = {
-      ...profile,
+      ...profileData,
       university: profile.university?.name || null,
+      currentInternship: currentEnrollment
+        ? {
+          id: currentEnrollment.internship.id,
+          title: currentEnrollment.internship.opportunity.title,
+          duration: currentEnrollment.internship.opportunity.duration,
+          type: currentEnrollment.internship.opportunity.type,
+          enrolledAt: currentEnrollment.createdAt,
+          trainer: currentEnrollment.internship.trainer,
+          company: {
+            ...currentEnrollment.internship.company,
+            enrolledAt: currentEnrollment.createdAt,
+          },
+        }
+        : null,
     };
     return convertBigIntFields(transformed);
   }
@@ -223,10 +275,32 @@ export class StudentService {
 
           },
         },
+        internships: {
+          where: { internship: { status: InternshipStatus.ACTIVE } },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: {
+            internship: {
+              include: {
+                company: {
+                  select: {
+                    id: true,
+                    name: true,
+                    shortCode: true,
+                    logo: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
-    return convertBigIntFields(updated);
+    return convertBigIntFields({
+      ...updated,
+      company: updated.internships[0]?.internship.company || null,
+    });
   }
 
 
@@ -633,6 +707,16 @@ export class StudentService {
           include: {
             opportunity: true,
             company: true,
+            trainer: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+                profileImage: true,
+              },
+            },
           },
         },
       },
