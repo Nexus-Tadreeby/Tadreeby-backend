@@ -141,7 +141,7 @@ model User {
   receivedMessages      Message[]      @relation("recv")
   evaluations           Evaluation[]   @relation("UserEvaluations")
   trainerInternships    Internship[]   @relation("TrainerInternship")
-  supervisorInternships Internship[]   @relation("SupervisorInternship")
+  // supervisorInternships Internship[]   @relation("SupervisorInternship")
   sessions              Session[]
 
   university         University?         @relation(fields: [universityId], references: [id], onDelete: SetNull)
@@ -237,10 +237,10 @@ model University {
   updatedAt   DateTime @default(now())
 
   users       User[]
-  internships Internship[]
+  // internships Internship[]
   students    StudentProfile[]
   supervisors UniversitySupervisorProfile[]
-  uditLogs    UniversityAuditLog[]
+  auditLogs    UniversityAuditLog[]
 }
 
 //! University log model(tracker)
@@ -412,9 +412,9 @@ model Internship {
   id            Int              @id @default(autoincrement())
   opportunityId Int
   companyId     Int
-  universityId  Int
+  // universityId  Int
   trainerId     Int?
-  supervisorId  Int?
+  // supervisorId  Int?
   status        InternshipStatus @default(ACTIVE)
 
   students    InternshipStudent[]
@@ -423,17 +423,17 @@ model Internship {
   tasks       Task[]
 
   company     Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  university  University          @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  // university  University          @relation(fields: [universityId], references: [id], onDelete: Cascade)
   opportunity TrainingOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
   trainer     User?               @relation("TrainerInternship", fields: [trainerId], references: [id], onDelete: SetNull)
-  supervisor  User?               @relation("SupervisorInternship", fields: [supervisorId], references: [id], onDelete: SetNull)
+  // supervisor  User?               @relation("SupervisorInternship", fields: [supervisorId], references: [id], onDelete: SetNull)
   // opportunityId String @unique
   // opportunity   TrainingOpportunity @relation("OppToInternship", fields: [opportunityId], references: [id])
 
   @@index([companyId])
-  @@index([universityId])
+  // @@index([universityId])
   @@index([status])
-  @@index([universityId, status])
+  // @@index([universityId, status])
 }
 
 // ! Internship Student Model
