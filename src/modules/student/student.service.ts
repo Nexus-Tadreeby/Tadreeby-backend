@@ -1248,17 +1248,7 @@ export class StudentService {
       include: {
         opportunity: true,
         company: true,
-        university: true,
         trainer: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            profileImage: true,
-          },
-        },
-        supervisor: {
           select: {
             id: true,
             firstName: true,

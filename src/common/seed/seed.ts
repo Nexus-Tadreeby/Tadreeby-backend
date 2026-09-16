@@ -591,7 +591,6 @@
 //         await prisma.$disconnect();
 //     });
 
-
 import "dotenv/config";
 
 import {
@@ -602,7 +601,6 @@ import {
     StudentApprovalStatus,
     TrainingType,
     UniversityAction,
-    UserAction,
     UserRole,
     AttendanceStatus,
     TaskStatus,
@@ -616,8 +614,6 @@ const adapter = new PrismaPg({
 });
 
 const prisma = new PrismaClient({ adapter });
-
-import "dotenv/config";
 
 // -------------------------------------
 // HELPERS (minimal)
@@ -687,8 +683,24 @@ async function main() {
     // ---------- UNIVERSITIES (Gaza only) ----------
     console.log("📚 Creating universities...");
     const universitiesData = [
-        { name: "Islamic University of Gaza", shortCode: "IUG" },
-        { name: "Al-Azhar University", shortCode: "AZU" },
+        {
+            name: "Islamic University of Gaza",
+            shortCode: "IUG",
+            phone: "+970-8-282-3310",
+            location: "Al-Nasser Street, Gaza City, Palestine",
+            description:
+                "One of the leading universities in the Gaza Strip, specializing in science, engineering, and humanities.",
+            logo: "https://cdn.tadreeby.com/logos/iug.png",
+        },
+        {
+            name: "Al-Azhar University",
+            shortCode: "AZU",
+            phone: "+970-8-264-1044",
+            location: "Jamal Abdel Nasser Street, Gaza City, Palestine",
+            description:
+                "A historic Palestinian university offering a wide range of academic programs in Gaza.",
+            logo: "https://cdn.tadreeby.com/logos/azu.png",
+        },
     ];
 
     const createdUniversities: any[] = [];
@@ -699,10 +711,10 @@ async function main() {
                 shortCode: uni.shortCode.toLowerCase(),
                 email: `admin.${uni.shortCode.toLowerCase()}@tadreeby.com`,
                 isActive: true,
-                phone: null,
-                location: null,
-                description: null,
-                logo: null,
+                phone: uni.phone,
+                location: uni.location,
+                description: uni.description,
+                logo: uni.logo,
             },
         });
         createdUniversities.push(university);
@@ -720,8 +732,24 @@ async function main() {
     // ---------- COMPANIES ----------
     console.log("🏢 Creating companies...");
     const companiesData = [
-        { name: "Tadreeby Tech", shortCode: "TAD" },
-        { name: "Future Labs", shortCode: "FUT" },
+        {
+            name: "Tadreeby Tech",
+            shortCode: "TAD",
+            phone: "+970-59-123-4567",
+            location: "Omar Al-Mukhtar Street, Gaza City, Palestine",
+            description:
+                "A software house focused on building scalable web and mobile applications for clients in MENA.",
+            logo: "https://cdn.tadreeby.com/logos/tadreeby-tech.png",
+        },
+        {
+            name: "Future Labs",
+            shortCode: "FUT",
+            phone: "+970-59-987-6543",
+            location: "Al-Rimal District, Gaza City, Palestine",
+            description:
+                "An innovation lab working on data science and AI-driven products for the region.",
+            logo: "https://cdn.tadreeby.com/logos/future-labs.png",
+        },
     ];
 
     const createdCompanies: any[] = [];
@@ -732,10 +760,10 @@ async function main() {
                 shortCode: comp.shortCode.toLowerCase(),
                 email: `admin.${comp.shortCode.toLowerCase()}@tadreeby.com`,
                 isActive: true,
-                phone: null,
-                location: null,
-                description: null,
-                logo: null,
+                phone: comp.phone,
+                location: comp.location,
+                description: comp.description,
+                logo: comp.logo,
             },
         });
         createdCompanies.push(company);
@@ -762,8 +790,8 @@ async function main() {
             personalID: generatePersonalId(),
             isActive: true,
             recoveryEmail: buildRecoveryEmail("shahd", "abusharife"),
-            phone: null,
-            profileImage: null,
+            phone: "+970-59-100-0001",
+            profileImage: "https://cdn.tadreeby.com/users/super-admin.png",
             universityId: null,
             companyId: null,
         },
@@ -801,8 +829,8 @@ async function main() {
             personalID: generatePersonalId(),
             isActive: true,
             recoveryEmail: buildRecoveryEmail("ahmad", "khaled"),
-            phone: null,
-            profileImage: null,
+            phone: "+970-59-100-0002",
+            profileImage: "https://cdn.tadreeby.com/users/uni-admin-iug.png",
             companyId: null,
         },
     });
@@ -828,8 +856,8 @@ async function main() {
             personalID: generatePersonalId(),
             isActive: true,
             recoveryEmail: buildRecoveryEmail("nadine", "saleh"),
-            phone: null,
-            profileImage: null,
+            phone: "+970-59-100-0003",
+            profileImage: "https://cdn.tadreeby.com/users/supervisor-nadine.png",
             companyId: null,
             supervisorProfile: {
                 create: {
@@ -861,8 +889,8 @@ async function main() {
             personalID: generatePersonalId(),
             isActive: true,
             recoveryEmail: buildRecoveryEmail("rana", "odeh"),
-            phone: null,
-            profileImage: null,
+            phone: "+970-59-100-0004",
+            profileImage: "https://cdn.tadreeby.com/users/supervisor-rana.png",
             companyId: null,
             supervisorProfile: {
                 create: {
@@ -894,8 +922,8 @@ async function main() {
             personalID: generatePersonalId(),
             isActive: true,
             recoveryEmail: buildRecoveryEmail("khalil", "nasser"),
-            phone: null,
-            profileImage: null,
+            phone: "+970-59-100-0005",
+            profileImage: "https://cdn.tadreeby.com/users/company-admin-khalil.png",
             universityId: null,
         },
     });
@@ -921,8 +949,8 @@ async function main() {
             personalID: generatePersonalId(),
             isActive: true,
             recoveryEmail: buildRecoveryEmail("hani", "abusalem"),
-            phone: null,
-            profileImage: null,
+            phone: "+970-59-100-0006",
+            profileImage: "https://cdn.tadreeby.com/users/trainer-hani.png",
             universityId: null,
             trainerProfile: {
                 create: {
@@ -957,8 +985,8 @@ async function main() {
             personalID: generatePersonalId(),
             isActive: true,
             recoveryEmail: buildRecoveryEmail("approved", "student"),
-            phone: null,
-            profileImage: null,
+            phone: "+970-59-200-0001",
+            profileImage: "https://cdn.tadreeby.com/users/approved-student.png",
             companyId: null,
             studentProfile: {
                 create: {
@@ -971,7 +999,7 @@ async function main() {
                     approvedAt: new Date(),
                     rejectionReason: null,
                     skills: "JavaScript, React, Node.js",
-                    cvUrl: null,
+                    cvUrl: "https://cdn.tadreeby.com/cv/approved-student.pdf",
                     verificationDocument: "verified.pdf",
                 },
             },
@@ -997,8 +1025,8 @@ async function main() {
             personalID: generatePersonalId(),
             isActive: true,
             recoveryEmail: buildRecoveryEmail("approvedtwo", "student"),
-            phone: null,
-            profileImage: null,
+            phone: "+970-59-200-0002",
+            profileImage: "https://cdn.tadreeby.com/users/approved-two-student.png",
             companyId: null,
             studentProfile: {
                 create: {
@@ -1011,7 +1039,7 @@ async function main() {
                     approvedAt: new Date(),
                     rejectionReason: null,
                     skills: "TypeScript, NestJS, PostgreSQL",
-                    cvUrl: null,
+                    cvUrl: "https://cdn.tadreeby.com/cv/approved-two-student.pdf",
                     verificationDocument: "verified2.pdf",
                 },
             },
@@ -1037,8 +1065,8 @@ async function main() {
             personalID: generatePersonalId(),
             isActive: true,
             recoveryEmail: buildRecoveryEmail("rejected", "student"),
-            phone: null,
-            profileImage: null,
+            phone: "+970-59-200-0003",
+            profileImage: "https://cdn.tadreeby.com/users/rejected-student.png",
             companyId: null,
             studentProfile: {
                 create: {
@@ -1050,8 +1078,8 @@ async function main() {
                     approvalStatus: StudentApprovalStatus.REJECTED,
                     approvedAt: null,
                     rejectionReason: "Invalid verification document",
-                    skills: null,
-                    cvUrl: null,
+                    skills: "HTML, CSS, basic JavaScript",
+                    cvUrl: "https://cdn.tadreeby.com/cv/rejected-student.pdf",
                     verificationDocument: "invalid.pdf",
                 },
             },
@@ -1077,8 +1105,8 @@ async function main() {
             personalID: generatePersonalId(),
             isActive: true,
             recoveryEmail: buildRecoveryEmail("pending", "student"),
-            phone: null,
-            profileImage: null,
+            phone: "+970-59-200-0004",
+            profileImage: "https://cdn.tadreeby.com/users/pending-student.png",
             companyId: null,
             studentProfile: {
                 create: {
@@ -1089,9 +1117,9 @@ async function main() {
                     gpa: 3.0,
                     approvalStatus: StudentApprovalStatus.PENDING,
                     approvedAt: null,
-                    rejectionReason: null,
-                    skills: null,
-                    cvUrl: null,
+                    rejectionReason: "Under review by university admin",
+                    skills: "Python, basic algorithms",
+                    cvUrl: "https://cdn.tadreeby.com/cv/pending-student.pdf",
                     verificationDocument: "pending.pdf",
                 },
             },
@@ -1108,11 +1136,8 @@ async function main() {
     console.log("  ✅ Created 4 students (2 approved from different universities, 1 rejected, 1 pending)");
 
     // ---------- SUPERVISOR-STUDENT ASSIGNMENTS ----------
-    // After a student is APPROVED, they must be assigned to a supervisor
-    // from their own university (regardless of any internship).
     console.log("🔗 Assigning approved students to their university supervisors...");
 
-    // Approved student #1 (IUG) -> Supervisor #1 (IUG)
     await prisma.supervisorStudent.create({
         data: {
             supervisorId: supervisorUser.id,
@@ -1122,7 +1147,6 @@ async function main() {
         },
     });
 
-    // Approved student #2 (AZU) -> Supervisor #2 (AZU)
     await prisma.supervisorStudent.create({
         data: {
             supervisorId: supervisorUser2.id,
@@ -1151,6 +1175,20 @@ async function main() {
         "Docker,Kubernetes,AWS",
     ];
     const types: TrainingType[] = ["HYBRID", "ONSITE", "REMOTE", "HYBRID", "ONSITE"];
+    const oppLocations = [
+        "Tadreeby Tech HQ, Gaza",
+        "Tadreeby Tech HQ, Gaza",
+        null, // remote
+        "Future Labs HQ, Gaza",
+        "Future Labs HQ, Gaza",
+    ];
+    const oppMeetingLinks = [
+        "https://meet.tadreeby.com/frontend-intern",
+        "https://meet.tadreeby.com/backend-intern",
+        "https://meet.tadreeby.com/fullstack-intern",
+        "https://meet.tadreeby.com/data-intern",
+        "https://meet.tadreeby.com/devops-intern",
+    ];
 
     const createdOpportunities: any[] = [];
     for (let i = 0; i < 5; i++) {
@@ -1165,8 +1203,8 @@ async function main() {
                 totalSeats: 10 + i * 2,
                 isActive: true,
                 type: types[i],
-                location: null,
-                meetingLink: null,
+                location: oppLocations[i] ?? "Remote / Online",
+                meetingLink: oppMeetingLinks[i],
             },
         });
         createdOpportunities.push(opp);
@@ -1174,23 +1212,19 @@ async function main() {
     }
 
     // ---------- INTERNSHIP ----------
-    // NOTE: no universityId, no supervisorId anymore.
-    // It belongs to a company and an opportunity, and can host many students
-    // from different universities. Trainers/supervisors are derived via students.
     console.log("📝 Creating Internship (with trainer, multiple universities via students)...");
     const selectedOpportunity = createdOpportunities[0]; // Frontend Developer Intern
     const internship = await prisma.internship.create({
         data: {
             opportunityId: selectedOpportunity.id,
             companyId: selectedOpportunity.companyId,
-            trainerId: trainerUser.id, // every internship must have a trainer
+            trainerId: trainerUser.id,
             status: InternshipStatus.ACTIVE,
         },
     });
     console.log(`  ✅ Created Internship #${internship.id} for "${selectedOpportunity.title}"`);
 
     // ---------- INTERNSHIP STUDENTS ----------
-    // Both approved students (from different universities) join the SAME internship.
     console.log("📊 Assigning approved students (from IUG & AZU) to the same internship...");
 
     await prisma.internshipStudent.create({
