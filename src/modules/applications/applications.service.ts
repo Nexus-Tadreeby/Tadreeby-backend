@@ -46,7 +46,7 @@ export class ApplicationsService {
     async acceptApplication(id: number, companyId: number) {
         const application = await this.prisma.application.findFirst({
             where: { id, opportunity: { companyId } },
-            include: { opportunity: true, student: true },
+            include: { opportunity: true },
         });
 
         if (!application) throw new NotFoundException('Application not found');
@@ -58,7 +58,7 @@ export class ApplicationsService {
             data: {
                 opportunityId: application.opportunityId,
                 companyId: application.opportunity.companyId,
-                universityId: application.student.universityId,
+                title: application.opportunity.title,
                 status: InternshipStatus.ACTIVE,
                 students: {
                     create: {

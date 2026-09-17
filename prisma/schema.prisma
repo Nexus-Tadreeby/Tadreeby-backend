@@ -136,19 +136,20 @@ model User {
 
   createdAt DateTime @default(now())
 
-  notifications         Notification[]
-  sentMessages          Message[]      @relation("sent")
-  receivedMessages      Message[]      @relation("recv")
-  evaluations           Evaluation[]   @relation("UserEvaluations")
-  trainerInternships    Internship[]   @relation("TrainerInternship")
+  notifications      Notification[]
+  sentMessages       Message[]      @relation("sent")
+  receivedMessages   Message[]      @relation("recv")
+  evaluations        Evaluation[]   @relation("UserEvaluations")
+  trainerInternships Internship[]   @relation("TrainerInternship")
   // supervisorInternships Internship[]   @relation("SupervisorInternship")
-  sessions              Session[]
+  sessions           Session[]
 
-  university         University?         @relation(fields: [universityId], references: [id], onDelete: SetNull)
-  company            Company?            @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  passwordResetCodes PasswordResetCode[]
-  userActivityLogs   UserActivityLog[]
-  userStatuses       UserStatus[]
+  university             University?            @relation(fields: [universityId], references: [id], onDelete: SetNull)
+  company                Company?               @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  internshipSupervisions InternshipSupervisor[] @relation("SupervisorInternships")
+  passwordResetCodes     PasswordResetCode[]
+  userActivityLogs       UserActivityLog[]
+  userStatuses           UserStatus[]
 
   @@index([isActive])
   // to enable role filter
@@ -236,11 +237,12 @@ model University {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now())
 
-  users       User[]
+  users                 User[]
   // internships Internship[]
-  students    StudentProfile[]
-  supervisors UniversitySupervisorProfile[]
-  auditLogs    UniversityAuditLog[]
+  students              StudentProfile[]
+  supervisors           UniversitySupervisorProfile[]
+  auditLogs             UniversityAuditLog[]
+  internshipSupervisors InternshipSupervisor[]
 }
 
 //! University log model(tracker)
@@ -408,41 +410,146 @@ model Application {
 
 // ! Internship Model
 
+// model Internship {
+//   id            Int              @id @default(autoincrement())
+//   opportunityId Int
+//   companyId     Int
+//   // universityId  Int
+//   trainerId     Int?
+//   // supervisorId  Int?
+//   status        InternshipStatus @default(ACTIVE)
+
+//   students    InternshipStudent[]
+//   attendance  Attendance[]
+//   evaluations Evaluation[]
+//   tasks       Task[]
+
+//   company     Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+//   // university  University          @relation(fields: [universityId], references: [id], onDelete: Cascade)
+//   opportunity TrainingOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+//   trainer     User?               @relation("TrainerInternship", fields: [trainerId], references: [id], onDelete: SetNull)
+//   // supervisor  User?               @relation("SupervisorInternship", fields: [supervisorId], references: [id], onDelete: SetNull)
+//   // opportunityId String @unique
+//   // opportunity   TrainingOpportunity @relation("OppToInternship", fields: [opportunityId], references: [id])
+
+//   @@index([companyId])
+//   // @@index([universityId])
+//   @@index([status])
+//   // @@index([universityId, status])
+// }
+
 model Internship {
   id            Int              @id @default(autoincrement())
   opportunityId Int
   companyId     Int
-  // universityId  Int
   trainerId     Int?
-  // supervisorId  Int?
   status        InternshipStatus @default(ACTIVE)
+
+  // Display
+  title        String
+  subtitle     String?
+  description  String?
+  coverImage   String?
+  cohort       String?
+  trainingType TrainingType @default(ONSITE)
+  location     String?
+
+  // Progress
+  progressPercent Int  @default(0)
+  currentSprint   Int  @default(0)
+  totalSprints    Int  @default(0)
+  weeksTotal      Int?
+  weeksCompleted  Int?
+  hoursTotal      Int?
+  hoursPerWeek    Int?
+
+  // Schedule
+  startDate     DateTime?
+  endDate       DateTime?
+  workingDays   String?
+  dailyHours    Int?
+  workStartTime String?
+  workEndTime   String?
+
+  // Attendance rules
+  attendanceMinPercent Float?  @default(90)
+  checkInStart         String?
+  checkInEnd           String?
+
+  // Venue
+  venueName      String?
+  venueAddress   String?
+  venueEquipment String?
+  remoteTools    String?
+
+  // Capacity
+  maxStudents   Int?
+  enrolledCount Int  @default(0)
+
+  // Complex data as JSON
+  techStack           Json?
+  learningObjectives  Json?
+  competencies        Json?
+  academicAllocations Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   students    InternshipStudent[]
   attendance  Attendance[]
   evaluations Evaluation[]
   tasks       Task[]
+  supervisors InternshipSupervisor[]
 
   company     Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  // university  University          @relation(fields: [universityId], references: [id], onDelete: Cascade)
   opportunity TrainingOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
   trainer     User?               @relation("TrainerInternship", fields: [trainerId], references: [id], onDelete: SetNull)
-  // supervisor  User?               @relation("SupervisorInternship", fields: [supervisorId], references: [id], onDelete: SetNull)
-  // opportunityId String @unique
-  // opportunity   TrainingOpportunity @relation("OppToInternship", fields: [opportunityId], references: [id])
 
   @@index([companyId])
-  // @@index([universityId])
   @@index([status])
-  // @@index([universityId, status])
+}
+
+model InternshipSupervisor {
+  id           Int      @id @default(autoincrement())
+  internshipId Int
+  supervisorId Int
+  universityId Int
+  role         String? // "Coordinator"
+  assignedAt   DateTime @default(now())
+
+  internship Internship @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+  supervisor User       @relation("SupervisorInternships", fields: [supervisorId], references: [id], onDelete: Cascade)
+  university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+
+  @@unique([internshipId, supervisorId])
+  @@index([internshipId])
+  @@index([supervisorId])
+  @@index([universityId])
 }
 
 // ! Internship Student Model
 
+// model InternshipStudent {
+//   id           Int      @id @default(autoincrement())
+//   internshipId Int
+//   studentId    Int
+//   createdAt    DateTime @default(now())
+
+//   internship Internship     @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+//   student    StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+
+//   @@unique([internshipId, studentId])
+//   @@index([studentId])
+//   @@index([internshipId])
+// }
+
 model InternshipStudent {
-  id           Int      @id @default(autoincrement())
-  internshipId Int
-  studentId    Int
-  createdAt    DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  internshipId   Int
+  studentId      Int
+  attendanceRate Float?   @default(0)
+  status         String?  @default("Optimal") // Optimal, Check In, Warning
+  createdAt      DateTime @default(now())
 
   internship Internship     @relation(fields: [internshipId], references: [id], onDelete: Cascade)
   student    StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
@@ -454,13 +561,32 @@ model InternshipStudent {
 
 // ! Task Model
 
+// model Task {
+//   id           Int        @id @default(autoincrement())
+//   internshipId Int
+//   title        String
+//   description  String?
+//   deadline     DateTime?
+//   status       TaskStatus @default(TODO)
+
+//   submissions TaskSubmission[]
+//   internship  Internship       @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+
+//   @@index([internshipId])
+//   @@index([status])
+// }
+
 model Task {
-  id           Int        @id @default(autoincrement())
-  internshipId Int
-  title        String
-  description  String?
-  deadline     DateTime?
-  status       TaskStatus @default(TODO)
+  id               Int        @id @default(autoincrement())
+  internshipId     Int
+  title            String
+  description      String?
+  deadline         DateTime?
+  status           TaskStatus @default(TODO)
+  badge            String? // "IN REVIEW"
+  rubricUrl        String?
+  submissionCount  Int        @default(0)
+  needsReviewCount Int        @default(0)
 
   submissions TaskSubmission[]
   internship  Internship       @relation(fields: [internshipId], references: [id], onDelete: Cascade)
@@ -492,14 +618,35 @@ model TaskSubmission {
 
 // ! Attendance Model
 
+// model Attendance {
+//   id           Int              @id @default(autoincrement())
+//   internshipId Int
+//   studentId    Int
+//   date         DateTime
+//   checkOut     DateTime?
+//   duration     String?
+//   status       AttendanceStatus
+
+//   internship Internship     @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+//   student    StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+
+//   @@index([internshipId])
+//   @@index([studentId])
+//   @@index([internshipId, date])
+// }
+
 model Attendance {
   id           Int              @id @default(autoincrement())
   internshipId Int
   studentId    Int
   date         DateTime
+  checkIn      DateTime?
   checkOut     DateTime?
   duration     String?
   status       AttendanceStatus
+  // method       String?          // QR / MANUAL
+  location     String?
+  notes        String?
 
   internship Internship     @relation(fields: [internshipId], references: [id], onDelete: Cascade)
   student    StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)

@@ -590,7 +590,6 @@
 //     .finally(async () => {
 //         await prisma.$disconnect();
 //     });
-
 import "dotenv/config";
 
 import {
@@ -650,6 +649,7 @@ async function cleanup() {
     await prisma.attendance.deleteMany();
     await prisma.evaluation.deleteMany();
     await prisma.internshipStudent.deleteMany();
+    await prisma.internshipSupervisor.deleteMany(); // ← NEW
     await prisma.internship.deleteMany();
     await prisma.application.deleteMany();
     await prisma.trainingOpportunity.deleteMany();
@@ -847,17 +847,17 @@ async function main() {
     console.log("👨‍🏫 Creating University Supervisor #1 (IUG)...");
     const supervisorUser = await prisma.user.create({
         data: {
-            firstName: "Nadine",
-            lastName: "Saleh",
-            email: buildEmail("nadine", "saleh", "iug"),
+            firstName: "Tariq",
+            lastName: "Al-Husseini",
+            email: buildEmail("tariq", "husseini", "iug"),
             password: defaultHashed,
             role: UserRole.UNIVERSITY_SUPERVISOR,
             universityId: createdUniversities[0].id,
             personalID: generatePersonalId(),
             isActive: true,
-            recoveryEmail: buildRecoveryEmail("nadine", "saleh"),
+            recoveryEmail: buildRecoveryEmail("tariq", "husseini"),
             phone: "+970-59-100-0003",
-            profileImage: "https://cdn.tadreeby.com/users/supervisor-nadine.png",
+            profileImage: "https://cdn.tadreeby.com/users/supervisor-tariq.png",
             companyId: null,
             supervisorProfile: {
                 create: {
@@ -880,17 +880,17 @@ async function main() {
     console.log("👩‍🏫 Creating University Supervisor #2 (AZU)...");
     const supervisorUser2 = await prisma.user.create({
         data: {
-            firstName: "Rana",
-            lastName: "Odeh",
-            email: buildEmail("rana", "odeh", "azu"),
+            firstName: "Khalid",
+            lastName: "Mousa",
+            email: buildEmail("khalid", "mousa", "azu"),
             password: defaultHashed,
             role: UserRole.UNIVERSITY_SUPERVISOR,
             universityId: createdUniversities[1].id,
             personalID: generatePersonalId(),
             isActive: true,
-            recoveryEmail: buildRecoveryEmail("rana", "odeh"),
+            recoveryEmail: buildRecoveryEmail("khalid", "mousa"),
             phone: "+970-59-100-0004",
-            profileImage: "https://cdn.tadreeby.com/users/supervisor-rana.png",
+            profileImage: "https://cdn.tadreeby.com/users/supervisor-khalid.png",
             companyId: null,
             supervisorProfile: {
                 create: {
@@ -976,15 +976,15 @@ async function main() {
     // 1) Approved student #1 (IUG)
     const approvedStudent = await prisma.user.create({
         data: {
-            firstName: "Approved",
-            lastName: "Student",
+            firstName: "Ahmad",
+            lastName: "Al-Najjar",
             email: "approved.student@student.com",
             password: defaultHashed,
             role: UserRole.STUDENT,
             universityId: createdUniversities[0].id,
             personalID: generatePersonalId(),
             isActive: true,
-            recoveryEmail: buildRecoveryEmail("approved", "student"),
+            recoveryEmail: buildRecoveryEmail("ahmad", "najjar"),
             phone: "+970-59-200-0001",
             profileImage: "https://cdn.tadreeby.com/users/approved-student.png",
             companyId: null,
@@ -1013,18 +1013,18 @@ async function main() {
         },
     });
 
-    // 2) Approved student #2 (AZU) - to demonstrate multi-university internship
+    // 2) Approved student #2 (AZU)
     const approvedStudent2 = await prisma.user.create({
         data: {
-            firstName: "ApprovedTwo",
-            lastName: "Student",
+            firstName: "Sara",
+            lastName: "Qasim",
             email: "approved.two.student@student.com",
             password: defaultHashed,
             role: UserRole.STUDENT,
             universityId: createdUniversities[1].id,
             personalID: generatePersonalId(),
             isActive: true,
-            recoveryEmail: buildRecoveryEmail("approvedtwo", "student"),
+            recoveryEmail: buildRecoveryEmail("sara", "qasim"),
             phone: "+970-59-200-0002",
             profileImage: "https://cdn.tadreeby.com/users/approved-two-student.png",
             companyId: null,
@@ -1178,7 +1178,7 @@ async function main() {
     const oppLocations = [
         "Tadreeby Tech HQ, Gaza",
         "Tadreeby Tech HQ, Gaza",
-        null, // remote
+        "Remote / Online",
         "Future Labs HQ, Gaza",
         "Future Labs HQ, Gaza",
     ];
@@ -1203,7 +1203,7 @@ async function main() {
                 totalSeats: 10 + i * 2,
                 isActive: true,
                 type: types[i],
-                location: oppLocations[i] ?? "Remote / Online",
+                location: oppLocations[i],
                 meetingLink: oppMeetingLinks[i],
             },
         });
@@ -1211,27 +1211,145 @@ async function main() {
         console.log(`  ✅ Created: ${opportunityTitles[i]}`);
     }
 
-    // ---------- INTERNSHIP ----------
-    console.log("📝 Creating Internship (with trainer, multiple universities via students)...");
+    // ---------- INTERNSHIP (FULL DETAILS) ----------
+    console.log("📝 Creating Internship with full details...");
     const selectedOpportunity = createdOpportunities[0]; // Frontend Developer Intern
+
+    const internshipStart = new Date("2026-07-14T09:00:00Z");
+    const internshipEnd = new Date("2026-09-30T15:00:00Z");
+
     const internship = await prisma.internship.create({
         data: {
             opportunityId: selectedOpportunity.id,
             companyId: selectedOpportunity.companyId,
             trainerId: trainerUser.id,
             status: InternshipStatus.ACTIVE,
+
+            // Display
+            title: "Backend Engineering: Rails & Microservices",
+            subtitle:
+                "Track your trainer's training progress, grading rubrics, attendance rosters, and curriculum execution.",
+            description:
+                "Practical, production-grade intensive training focused on modern backend systems engineering and web APIs using Ruby on Rails 7.1. Trainees architect and deploy scalable micro-services, complex relational data schemas with PostgreSQL, secure authentication tokens, distributed background queues, and automated test pipelines adhering to strict enterprise agile standards.",
+            coverImage:
+                "https://cdn.tadreeby.com/internships/rails-microservices-cover.jpg",
+            cohort: "Cohort 2026-A",
+            trainingType: TrainingType.HYBRID,
+            location: "Gaza Tech Hub",
+
+            // Progress
+            progressPercent: 67,
+            currentSprint: 4,
+            totalSprints: 6,
+            weeksTotal: 12,
+            weeksCompleted: 8,
+            hoursTotal: 360,
+            hoursPerWeek: 30,
+
+            // Schedule
+            startDate: internshipStart,
+            endDate: internshipEnd,
+            workingDays: "Sunday - Thursday",
+            dailyHours: 6,
+            workStartTime: "09:00",
+            workEndTime: "15:00",
+
+            // Attendance
+            attendanceMinPercent: 90,
+            checkInStart: "08:45",
+            checkInEnd: "09:15",
+
+            // Venue
+            venueName: "CodeCraft Studio Lab 3",
+            venueAddress: "4th Floor, IT Complex Tower, Gaza",
+            venueEquipment:
+                "Dual-monitor workstations, high-speed fiber backbone, and gigabit LAN.",
+            remoteTools: "Discord, GitHub",
+
+            // Capacity
+            maxStudents: 50,
+            enrolledCount: 50,
+
+            // Complex JSON
+            techStack: [
+                "Ruby 3.2",
+                "Rails 7.1",
+                "PostgreSQL 16",
+                "REST APIs & JWT",
+                "RSpec & TDD",
+                "Docker Compose",
+                "Redis & Sidekiq",
+                "Git & GitHub Actions",
+            ],
+            learningObjectives: [
+                {
+                    title: "Master MVC Architecture & ActiveRecord Schemas",
+                    description:
+                        "Design complex normalized relational schemas, custom database migrations, associations, eager-loading optimizations, and query indexes.",
+                },
+                {
+                    title: "Secure RESTful Endpoints & Tokenized Authentication",
+                    description:
+                        "Implement Devise-JWT authentication, granular role permissions with Pundit, API rate limiting, and defensive request validation.",
+                },
+                {
+                    title: "Test-Driven Development (TDD) with RSpec & CI Pipelines",
+                    description:
+                        "Write deterministic unit, request, and integration test suites using FactoryBot and VCR, with automated PR regression checks via GitHub Actions.",
+                },
+                {
+                    title: "Asynchronous Queues & Background Workers",
+                    description:
+                        "Implement high-throughput async processing via Sidekiq and Redis for transactional emails, report exports, and webhook dispatches.",
+                },
+            ],
+            competencies: [
+                "RESTful JSON API Standards & Versioning",
+                "Relational Schema Normalization & Indexing",
+                "Background Jobs & Redis Cache Stores",
+                "CI/CD Automated GitHub Action Deployments",
+            ],
+            academicAllocations: [
+                { university: "Islamic University of Gaza", shortCode: "IUG", count: 22 },
+                { university: "Al-Azhar University", shortCode: "AZU", count: 18 },
+                { university: "Palestine University", shortCode: "UP", count: 10 },
+            ],
         },
     });
-    console.log(`  ✅ Created Internship #${internship.id} for "${selectedOpportunity.title}"`);
+    console.log(`  ✅ Created Internship #${internship.id} - "${internship.title}"`);
+
+    // ---------- INTERNSHIP SUPERVISORS ----------
+    console.log("🎓 Assigning university supervisors to the internship...");
+
+    await prisma.internshipSupervisor.create({
+        data: {
+            internshipId: internship.id,
+            supervisorId: supervisorUser.id, // IUG supervisor
+            universityId: createdUniversities[0].id,
+            role: "Islamic University Coordinator",
+        },
+    });
+
+    await prisma.internshipSupervisor.create({
+        data: {
+            internshipId: internship.id,
+            supervisorId: supervisorUser2.id, // AZU supervisor
+            universityId: createdUniversities[1].id,
+            role: "Al-Azhar University Coordinator",
+        },
+    });
+
+    console.log("  ✅ Assigned 2 university supervisors to the internship");
 
     // ---------- INTERNSHIP STUDENTS ----------
-    console.log("📊 Assigning approved students (from IUG & AZU) to the same internship...");
+    console.log("📊 Assigning approved students to the internship...");
 
     await prisma.internshipStudent.create({
         data: {
             internshipId: internship.id,
             studentId: approvedStudent.id, // IUG
-            createdAt: new Date(),
+            attendanceRate: 98,
+            status: "Optimal",
         },
     });
 
@@ -1239,11 +1357,12 @@ async function main() {
         data: {
             internshipId: internship.id,
             studentId: approvedStudent2.id, // AZU
-            createdAt: new Date(),
+            attendanceRate: 92,
+            status: "Optimal",
         },
     });
 
-    console.log(`  ✅ Assigned 2 students from different universities to Internship #${internship.id}`);
+    console.log(`  ✅ Assigned 2 students to Internship #${internship.id}`);
 
     // ---------- ATTENDANCE ----------
     console.log("📅 Creating attendance records for approved student #1...");
@@ -1251,14 +1370,24 @@ async function main() {
     for (let i = 0; i < 3; i++) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
+
+        const checkIn = new Date(date);
+        checkIn.setHours(8, 50, 0, 0);
+
+        const checkOut = new Date(date);
+        checkOut.setHours(15, 0, 0, 0);
+
         await prisma.attendance.create({
             data: {
                 internshipId: internship.id,
                 studentId: approvedStudent.id,
                 date: date,
+                checkIn: checkIn,
+                checkOut: checkOut,
+                duration: "6 hours",
                 status: AttendanceStatus.CHECKED_IN,
-                checkOut: new Date(date.getTime() + 8 * 60 * 60 * 1000),
-                duration: "8 hours",
+                location: "CodeCraft Studio Lab 3",
+                notes: "On-site QR verification",
             },
         });
     }
@@ -1267,9 +1396,42 @@ async function main() {
     // ---------- TASKS ----------
     console.log("📋 Creating tasks for the internship...");
     const tasksData = [
-        { title: "Set up development environment", status: TaskStatus.DONE },
-        { title: "Create React components for dashboard", status: TaskStatus.IN_PROGRESS },
-        { title: "Implement API integration", status: TaskStatus.TODO },
+        {
+            title: "Authentication & JWT Refresh Architecture",
+            status: TaskStatus.IN_PROGRESS,
+            badge: "IN REVIEW",
+            submissionCount: 32,
+            needsReviewCount: 18,
+            deadline: new Date("2026-08-28T23:59:00Z"),
+            rubricUrl: "https://cdn.tadreeby.com/rubrics/jwt-auth.pdf",
+        },
+        {
+            title: "Set up development environment",
+            status: TaskStatus.DONE,
+            badge: "GRADED",
+            submissionCount: 50,
+            needsReviewCount: 0,
+            deadline: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+            rubricUrl: null,
+        },
+        {
+            title: "Create React components for dashboard",
+            status: TaskStatus.IN_PROGRESS,
+            badge: "ACTIVE",
+            submissionCount: 20,
+            needsReviewCount: 5,
+            deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+            rubricUrl: null,
+        },
+        {
+            title: "Implement API integration",
+            status: TaskStatus.TODO,
+            badge: null,
+            submissionCount: 0,
+            needsReviewCount: 0,
+            deadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+            rubricUrl: null,
+        },
     ];
 
     const createdTasks: any[] = [];
@@ -1279,8 +1441,12 @@ async function main() {
                 internshipId: internship.id,
                 title: t.title,
                 description: `Task: ${t.title}`,
-                deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                deadline: t.deadline,
                 status: t.status,
+                badge: t.badge,
+                rubricUrl: t.rubricUrl,
+                submissionCount: t.submissionCount,
+                needsReviewCount: t.needsReviewCount,
             },
         });
         createdTasks.push(task);
@@ -1288,7 +1454,7 @@ async function main() {
     }
 
     // ---------- TASK SUBMISSION (for the "DONE" task) ----------
-    const doneTask = createdTasks.find(t => t.status === TaskStatus.DONE);
+    const doneTask = createdTasks.find((t) => t.status === TaskStatus.DONE);
     if (doneTask) {
         console.log("📤 Creating task submission for approved student #1...");
         await prisma.taskSubmission.create({
@@ -1330,9 +1496,11 @@ async function main() {
     console.log(`  - 1 Company Admin`);
     console.log(`  - 1 Company Trainer`);
     console.log(`  - 4 Students (2 approved from IUG & AZU, 1 rejected, 1 pending)`);
-    console.log(`  - 2 SupervisorStudent assignments (approved students only)`);
+    console.log(`  - 2 SupervisorStudent assignments`);
     console.log(`  - ${createdOpportunities.length} Training Opportunities`);
-    console.log(`  - 1 Internship (with trainer, hosting 2 students from different universities)`);
+    console.log(`  - 1 Internship (full details, with 2 supervisors + 2 students)`);
+    console.log(`  - 2 InternshipSupervisor assignments`);
+    console.log(`  - 2 InternshipStudent assignments`);
     console.log(`  - 3 Attendance records`);
     console.log(`  - ${createdTasks.length} Tasks`);
     console.log(`  - 1 Task Submission`);

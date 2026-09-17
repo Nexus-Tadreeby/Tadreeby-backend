@@ -435,13 +435,6 @@ export class StudentService {
               },
             },
 
-            university: {
-              select: {
-                id: true,
-                name: true,
-                logo: true,
-              },
-            },
           },
         },
       },
@@ -468,11 +461,24 @@ export class StudentService {
   async getOpportunityById(userId: number, opportunityId: number) {
     const opportunity = await this.prisma.trainingOpportunity.findUnique({
       where: { id: opportunityId, isActive: true },
-      include: { company: true },
+      include: {
+        company: true,
+        internships: {
+          select: { id: true },
+          orderBy: { id: 'desc' },
+          take: 1,
+        },
+      },
     });
 
     if (!opportunity) {
       throw new NotFoundException('Opportunity not found');
+    }
+
+    const internship = opportunity.internships[0];
+
+    if (internship) {
+      return this.getInternshipDetails(userId, internship.id, false);
     }
 
     return this.mapOpportunity(opportunity);
@@ -746,19 +752,11 @@ export class StudentService {
 
     if (existing) throw new ConflictException('Already applied for this opportunity');
 
-    // Get student's university
-    const student = await this.prisma.studentProfile.findUnique({
-      where: { userId },
-      select: { universityId: true },
-    });
-
-    if (!student) throw new NotFoundException('Student profile not found');
-
     const internship = await this.prisma.internship.create({
       data: {
         opportunityId,
         companyId: opportunity.companyId,
-        universityId: student.universityId,
+        title: opportunity.title,
         status: InternshipStatus.ACTIVE,
       },
     });
@@ -1231,22 +1229,23 @@ export class StudentService {
 
 
 
-  async getInternshipDetails(userId: number, internshipId: number) {
-    // 1. التحقق من أن الطالب مسجل في هذا التدريب
-    const enrolled = await this.prisma.internshipStudent.findFirst({
-      where: {
-        studentId: userId,
-        internshipId,
-      },
-    });
+  async getInternshipDetails(userId: number, internshipId: number, requireEnrollment = true) {
+    if (requireEnrollment) {
+      const enrolled = await this.prisma.internshipStudent.findFirst({
+        where: {
+          studentId: userId,
+          internshipId,
+        },
+      });
 
-    if (!enrolled) throw new ForbiddenException('You are not enrolled in this internship');
+      if (!enrolled) {
+        throw new ForbiddenException('You are not enrolled in this internship');
+      }
+    }
 
-    // 2. جلب تفاصيل التدريب
     const internship = await this.prisma.internship.findUnique({
       where: { id: internshipId },
       include: {
-        opportunity: true,
         company: true,
         trainer: {
           select: {
@@ -1254,56 +1253,353 @@ export class StudentService {
             firstName: true,
             lastName: true,
             email: true,
+            phone: true,
             profileImage: true,
+          },
+        },
+        opportunity: true,
+        supervisors: {
+          include: {
+            supervisor: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                profileImage: true,
+                supervisorProfile: {
+                  select: {
+                    department: true,
+                  },
+                },
+              },
+            },
+            university: {
+              select: {
+                id: true,
+                name: true,
+                shortCode: true,
+              },
+            },
+          },
+        },
+        students: {
+          include: {
+            student: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    profileImage: true,
+                  },
+                },
+                university: {
+                  select: {
+                    id: true,
+                    name: true,
+                    shortCode: true,
+                  },
+                },
+              },
+            },
           },
         },
         tasks: {
           include: {
-            submissions: {
-              where: { studentId: userId },
-            },
+            submissions: true,
           },
           orderBy: { deadline: 'asc' },
         },
         attendance: {
-          where: { studentId: userId },
           orderBy: { date: 'desc' },
-        },
-        evaluations: {
-          where: { studentId: userId },
-          include: {
-            evaluator: {
-              select: {
-                firstName: true,
-                lastName: true,
-                role: true,
-              },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
         },
       },
     });
 
-    if (!internship) throw new NotFoundException('Internship not found');
+    if (!internship) {
+      throw new NotFoundException('Internship not found');
+    }
 
-    // 3. حساب الإحصائيات
-    const totalTasks = internship.tasks.length;
-    const completedTasks = internship.tasks.filter(t => t.status === TaskStatus.DONE).length;
-    const attendanceCount = internship.attendance.length;
-    const presentCount = internship.attendance.filter(a => a.status === AttendanceStatus.CHECKED_IN).length;
+    const tasks = internship.tasks ?? [];
+    const students = internship.students ?? [];
+    const attendanceEntries = internship.attendance ?? [];
+    const todayAttendance = attendanceEntries.filter((entry) => {
+      const date = new Date(entry.date);
+      const now = new Date();
+      return date.toDateString() === now.toDateString();
+    });
+
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter((task) => task.status === TaskStatus.DONE).length;
+    const inProgressTasks = tasks.filter((task) => task.status === TaskStatus.IN_PROGRESS).length;
+    const needsGrading = tasks.reduce((sum, task) => sum + (task.needsReviewCount ?? 0), 0);
+    const completedPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+    const studentAverageAttendanceRate = students.length > 0
+      ? Math.round(
+        students.reduce((sum, item) => sum + Number(item.attendanceRate ?? 0), 0) / students.length,
+      )
+      : 0;
+
+    const flagged = students.filter((item) => String(item.status ?? '').toLowerCase() === 'warning').length;
+
+    const academicAllocations = this.buildAcademicAllocations(internship.academicAllocations, students);
+    const universitySupervisors = internship.supervisors.map((supervisorItem) => ({
+      id: supervisorItem.supervisor.id,
+      firstName: supervisorItem.supervisor.firstName,
+      lastName: supervisorItem.supervisor.lastName,
+      profileImage: supervisorItem.supervisor.profileImage ?? null,
+      department: supervisorItem.supervisor.supervisorProfile?.department ?? null,
+      role: supervisorItem.role ?? null,
+      university: {
+        id: supervisorItem.university.id,
+        name: supervisorItem.university.name,
+        shortCode: supervisorItem.university.shortCode,
+      },
+    }));
+
+    const studentsPreview = students.slice(0, 10).map((entry) => ({
+      id: entry.student.user.id,
+      firstName: entry.student.user.firstName,
+      lastName: entry.student.user.lastName,
+      shortCode: entry.student.university?.shortCode ?? '',
+      university: entry.student.university?.shortCode ?? '',
+      attendanceRate: Number(entry.attendanceRate ?? 0),
+      status: entry.status ?? null,
+    }));
+
+    const techStack = this.normalizeJsonStringArray(internship.techStack);
+    const competencies = this.normalizeJsonStringArray(internship.competencies);
+    const learningObjectives = this.normalizeLearningObjectives(internship.learningObjectives);
+    const remoteTools = this.parseRemoteTools(internship.remoteTools);
+    const currentActiveAssignment = this.buildCurrentActiveAssignment(tasks, internship.enrolledCount || students.length);
 
     return {
-      ...internship,
-      stats: {
-        totalTasks,
-        completedTasks,
-        progress: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
-        attendanceCount,
-        presentCount,
-        attendanceRate: attendanceCount > 0 ? (presentCount / attendanceCount) * 100 : 0,
+      id: internship.id,
+      status: internship.status,
+      header: {
+        title: internship.title,
+        subtitle: internship.subtitle ?? null,
+        cohort: internship.cohort ?? null,
+        coverImage: internship.coverImage ?? null,
+        trainingType: internship.trainingType,
+        location: internship.location ?? null,
+        enrolledCount: internship.enrolledCount ?? students.length,
+        company: {
+          id: internship.company.id,
+          name: internship.company.name,
+          logo: internship.company.logo ?? null,
+        },
+        trainer: internship.trainer
+          ? {
+            id: internship.trainer.id,
+            firstName: internship.trainer.firstName,
+            lastName: internship.trainer.lastName,
+            profileImage: internship.trainer.profileImage ?? null,
+          }
+          : null,
       },
+      stats: {
+        internshipProgress: {
+          percent: internship.progressPercent ?? 0,
+          weeksCompleted: internship.weeksCompleted ?? 0,
+          weeksTotal: internship.weeksTotal ?? 0,
+          hoursCompleted: internship.hoursTotal && internship.hoursPerWeek && internship.weeksCompleted !== null && internship.weeksCompleted !== undefined
+            ? Math.round(internship.hoursPerWeek * internship.weeksCompleted)
+            : 0,
+          hoursTotal: internship.hoursTotal ?? 0,
+        },
+        tasks: {
+          total: totalTasks,
+          completed: completedTasks,
+          inProgress: inProgressTasks,
+          needsGrading,
+          completedPercent,
+        },
+        attendance: {
+          ratePercent: studentAverageAttendanceRate,
+          presentToday: todayAttendance.length,
+          flagged,
+        },
+      },
+      about: {
+        description: internship.description ?? null,
+        techStack,
+        learningObjectives,
+        competencies,
+      },
+      overview: {
+        trainingPeriod: {
+          startDate: internship.startDate ? internship.startDate.toISOString() : null,
+          endDate: internship.endDate ? internship.endDate.toISOString() : null,
+          weeksRemaining: Math.max(0, (internship.totalSprints ?? 0) - (internship.currentSprint ?? 0)),
+        },
+        totalDuration: {
+          hours: internship.hoursTotal ?? 0,
+          hoursPerWeek: internship.hoursPerWeek ?? null,
+          workingDays: internship.workingDays ?? null,
+        },
+        trainingVenue: {
+          name: internship.venueName ?? null,
+          address: internship.venueAddress ?? null,
+          remoteTools,
+        },
+        academicAllocations,
+        universitySupervisors,
+      },
+      currentActiveAssignment,
+      syllabus: {
+        techStack,
+        competencies,
+      },
+      logistics: {
+        attendanceModel: {
+          type: internship.trainingType === 'ONSITE'
+            ? 'On-Site Lab + QR Verification'
+            : internship.trainingType === 'REMOTE'
+              ? 'Remote Attendance + QR Verification'
+              : 'Hybrid Attendance + QR Verification',
+          description: 'Daily check-in rules are managed by the internship schedule and attendance policy.',
+          minPercentRequired: internship.attendanceMinPercent ?? 90,
+          checkInWindow: {
+            start: internship.checkInStart ?? null,
+            end: internship.checkInEnd ?? null,
+          },
+        },
+        workingSchedule: {
+          days: internship.workingDays ?? null,
+          hours: internship.workStartTime && internship.workEndTime
+            ? `${internship.workStartTime} - ${internship.workEndTime}`
+            : null,
+          notes: internship.workStartTime && internship.workEndTime
+            ? 'Attendance is tracked according to the assigned daily check-in window.'
+            : null,
+        },
+        designatedFacility: {
+          name: internship.venueName ?? null,
+          description: internship.venueAddress ?? null,
+          equipment: internship.venueEquipment ?? null,
+        },
+        partners: {
+          count: academicAllocations.length,
+          list: academicAllocations.map((allocation) => ({
+            university: allocation.university,
+            shortCode: allocation.shortCode,
+            count: allocation.count,
+          })),
+        },
+      },
+      studentsPreview,
+      createdAt: internship.createdAt.toISOString(),
+      updatedAt: internship.updatedAt.toISOString(),
     };
+  }
+
+  private buildCurrentActiveAssignment(tasks: any[], totalStudents: number) {
+    const inProgressTasks = tasks.filter((task) => task.status === TaskStatus.IN_PROGRESS);
+    const chosen = [...inProgressTasks].sort((a, b) => (b.needsReviewCount ?? 0) - (a.needsReviewCount ?? 0))[0];
+
+    if (!chosen) {
+      return null;
+    }
+
+    const submissionsReceived = Number(chosen.submissionCount ?? chosen.submissions?.length ?? 0);
+    const recentSubmissionsLast40Min = (chosen.submissions ?? []).filter((submission: any) => {
+      if (!submission?.submittedAt) return false;
+      const submittedAt = new Date(submission.submittedAt);
+      const diffInMinutes = (Date.now() - submittedAt.getTime()) / (1000 * 60);
+      return diffInMinutes <= 40;
+    }).length;
+
+    return {
+      taskId: chosen.id,
+      title: chosen.title,
+      badge: chosen.badge ?? 'IN REVIEW',
+      needsReview: chosen.needsReviewCount ?? 0,
+      deadline: chosen.deadline ? chosen.deadline.toISOString() : null,
+      submissionsReceived,
+      totalStudents,
+      submittedPercent: totalStudents > 0 ? Math.round((submissionsReceived / totalStudents) * 100) : 0,
+      recentSubmissionsLast40Min,
+      rubricUrl: chosen.rubricUrl ?? null,
+    };
+  }
+
+  private buildAcademicAllocations(rawAllocations: unknown, students: any[]) {
+    if (Array.isArray(rawAllocations) && rawAllocations.length > 0) {
+      return rawAllocations
+        .filter((item) => typeof item === 'object' && item !== null)
+        .map((item: any) => ({
+          university: item.university ?? '',
+          shortCode: item.shortCode ?? '',
+          count: Number(item.count ?? 0),
+        }))
+        .filter((item) => item.university || item.shortCode);
+    }
+
+    const grouped = new Map<string, { university: string; shortCode: string; count: number }>();
+
+    for (const student of students) {
+      const universityName = student.student?.university?.name ?? 'Unknown';
+      const universityShortCode = student.student?.university?.shortCode ?? 'N/A';
+      const key = universityShortCode || universityName;
+
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          university: universityName,
+          shortCode: universityShortCode,
+          count: 0,
+        });
+      }
+
+      grouped.get(key)!.count += 1;
+    }
+
+    return [...grouped.values()].sort((a, b) => b.count - a.count);
+  }
+
+  private normalizeJsonStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((entry) => {
+        if (typeof entry === 'string') return entry;
+        if (typeof entry === 'number' || typeof entry === 'boolean') return String(entry);
+        if (typeof entry === 'object' && entry !== null) {
+          const obj = entry as Record<string, any>;
+          return obj.name ?? obj.title ?? obj.value ?? '';
+        }
+        return '';
+      })
+      .filter((entry) => entry && entry.length > 0);
+  }
+
+  private normalizeLearningObjectives(value: unknown): Array<{ title: string; description: string | null }> {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((entry) => {
+        if (typeof entry === 'object' && entry !== null) {
+          const obj = entry as Record<string, any>;
+          return {
+            title: String(obj.title ?? ''),
+            description: obj.description != null ? String(obj.description) : null,
+          };
+        }
+
+        return {
+          title: String(entry ?? ''),
+          description: null,
+        };
+      })
+      .filter((entry) => entry.title && entry.title.length > 0);
+  }
+
+  private parseRemoteTools(value: string | null | undefined): string[] {
+    if (!value) return [];
+    return value
+      .split(/[;,\n]/)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
   }
 
   private sanitizeFileName(name: string): string {
