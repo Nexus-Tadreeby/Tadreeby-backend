@@ -47,6 +47,12 @@ enum TaskStatus {
   DONE
 }
 
+enum TaskBadge {
+  IN_REVIEW
+  GRADED
+  ACTIVE
+}
+
 enum TrainingType {
   REMOTE
   ONSITE
@@ -583,7 +589,7 @@ model Task {
   description      String?
   deadline         DateTime?
   status           TaskStatus @default(TODO)
-  badge            String? // "IN REVIEW"
+  badge            TaskBadge?
   rubricUrl        String?
   submissionCount  Int        @default(0)
   needsReviewCount Int        @default(0)

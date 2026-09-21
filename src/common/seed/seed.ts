@@ -603,6 +603,7 @@ import {
     UserRole,
     AttendanceStatus,
     TaskStatus,
+    TaskBadge,
     EvaluationType,
 } from "@prisma/client";
 import * as argon2 from "argon2";
@@ -690,7 +691,6 @@ async function main() {
             location: "Al-Nasser Street, Gaza City, Palestine",
             description:
                 "One of the leading universities in the Gaza Strip, specializing in science, engineering, and humanities.",
-            logo: "https://cdn.tadreeby.com/logos/iug.png",
         },
         {
             name: "Al-Azhar University",
@@ -699,7 +699,6 @@ async function main() {
             location: "Jamal Abdel Nasser Street, Gaza City, Palestine",
             description:
                 "A historic Palestinian university offering a wide range of academic programs in Gaza.",
-            logo: "https://cdn.tadreeby.com/logos/azu.png",
         },
     ];
 
@@ -714,7 +713,7 @@ async function main() {
                 phone: uni.phone,
                 location: uni.location,
                 description: uni.description,
-                logo: uni.logo,
+                logo: null,
             },
         });
         createdUniversities.push(university);
@@ -739,7 +738,6 @@ async function main() {
             location: "Omar Al-Mukhtar Street, Gaza City, Palestine",
             description:
                 "A software house focused on building scalable web and mobile applications for clients in MENA.",
-            logo: "https://cdn.tadreeby.com/logos/tadreeby-tech.png",
         },
         {
             name: "Future Labs",
@@ -748,7 +746,6 @@ async function main() {
             location: "Al-Rimal District, Gaza City, Palestine",
             description:
                 "An innovation lab working on data science and AI-driven products for the region.",
-            logo: "https://cdn.tadreeby.com/logos/future-labs.png",
         },
     ];
 
@@ -763,7 +760,7 @@ async function main() {
                 phone: comp.phone,
                 location: comp.location,
                 description: comp.description,
-                logo: comp.logo,
+                logo: null,
             },
         });
         createdCompanies.push(company);
@@ -791,7 +788,6 @@ async function main() {
             isActive: true,
             recoveryEmail: buildRecoveryEmail("shahd", "abusharife"),
             phone: "+970-59-100-0001",
-            profileImage: "https://cdn.tadreeby.com/users/super-admin.png",
             universityId: null,
             companyId: null,
         },
@@ -820,17 +816,16 @@ async function main() {
     console.log("🎓 Creating University Admin...");
     const uniAdminUser = await prisma.user.create({
         data: {
-            firstName: "Ahmad",
-            lastName: "Khaled",
-            email: buildEmail("ahmad", "khaled", "iug"),
+            firstName: "University",
+            lastName: "Admin",
+            email: buildEmail("university", "admin", "iug"),
             password: defaultHashed,
             role: UserRole.UNIVERSITY_ADMIN,
             universityId: createdUniversities[0].id,
             personalID: generatePersonalId(),
             isActive: true,
-            recoveryEmail: buildRecoveryEmail("ahmad", "khaled"),
+            recoveryEmail: buildRecoveryEmail("university", "admin"),
             phone: "+970-59-100-0002",
-            profileImage: "https://cdn.tadreeby.com/users/uni-admin-iug.png",
             companyId: null,
         },
     });
@@ -847,17 +842,16 @@ async function main() {
     console.log("👨‍🏫 Creating University Supervisor #1 (IUG)...");
     const supervisorUser = await prisma.user.create({
         data: {
-            firstName: "Tariq",
-            lastName: "Al-Husseini",
-            email: buildEmail("tariq", "husseini", "iug"),
+            firstName: "University",
+            lastName: "Supervisor1",
+            email: buildEmail("university", "supervisor1", "iug"),
             password: defaultHashed,
             role: UserRole.UNIVERSITY_SUPERVISOR,
             universityId: createdUniversities[0].id,
             personalID: generatePersonalId(),
             isActive: true,
-            recoveryEmail: buildRecoveryEmail("tariq", "husseini"),
+            recoveryEmail: buildRecoveryEmail("university", "supervisor1"),
             phone: "+970-59-100-0003",
-            profileImage: "https://cdn.tadreeby.com/users/supervisor-tariq.png",
             companyId: null,
             supervisorProfile: {
                 create: {
@@ -880,17 +874,16 @@ async function main() {
     console.log("👩‍🏫 Creating University Supervisor #2 (AZU)...");
     const supervisorUser2 = await prisma.user.create({
         data: {
-            firstName: "Khalid",
-            lastName: "Mousa",
-            email: buildEmail("khalid", "mousa", "azu"),
+            firstName: "University",
+            lastName: "Supervisor2",
+            email: buildEmail("university", "supervisor2", "azu"),
             password: defaultHashed,
             role: UserRole.UNIVERSITY_SUPERVISOR,
             universityId: createdUniversities[1].id,
             personalID: generatePersonalId(),
             isActive: true,
-            recoveryEmail: buildRecoveryEmail("khalid", "mousa"),
+            recoveryEmail: buildRecoveryEmail("university", "supervisor2"),
             phone: "+970-59-100-0004",
-            profileImage: "https://cdn.tadreeby.com/users/supervisor-khalid.png",
             companyId: null,
             supervisorProfile: {
                 create: {
@@ -913,17 +906,16 @@ async function main() {
     console.log("💼 Creating Company Admin...");
     const companyAdminUser = await prisma.user.create({
         data: {
-            firstName: "Khalil",
-            lastName: "Nasser",
-            email: buildEmail("khalil", "nasser", "tad"),
+            firstName: "Company",
+            lastName: "Admin",
+            email: buildEmail("company", "admin", "tad"),
             password: defaultHashed,
             role: UserRole.COMPANY_ADMIN,
             companyId: createdCompanies[0].id,
             personalID: generatePersonalId(),
             isActive: true,
-            recoveryEmail: buildRecoveryEmail("khalil", "nasser"),
+            recoveryEmail: buildRecoveryEmail("company", "admin"),
             phone: "+970-59-100-0005",
-            profileImage: "https://cdn.tadreeby.com/users/company-admin-khalil.png",
             universityId: null,
         },
     });
@@ -940,17 +932,16 @@ async function main() {
     console.log("🧑‍💼 Creating Company Trainer #1...");
     const trainerUser = await prisma.user.create({
         data: {
-            firstName: "Hani",
-            lastName: "Abu Salem",
-            email: buildEmail("hani", "abusalem", "tad"),
+            firstName: "Company",
+            lastName: "Trainer",
+            email: buildEmail("company", "trainer", "tad"),
             password: defaultHashed,
             role: UserRole.COMPANY_TRAINER,
             companyId: createdCompanies[0].id,
             personalID: generatePersonalId(),
             isActive: true,
-            recoveryEmail: buildRecoveryEmail("hani", "abusalem"),
+            recoveryEmail: buildRecoveryEmail("company", "trainer"),
             phone: "+970-59-100-0006",
-            profileImage: "https://cdn.tadreeby.com/users/trainer-hani.png",
             universityId: null,
             trainerProfile: {
                 create: {
@@ -976,8 +967,8 @@ async function main() {
     // 1) Approved student #1 (IUG)
     const approvedStudent = await prisma.user.create({
         data: {
-            firstName: "Ahmad",
-            lastName: "Al-Najjar",
+            firstName: "Approved",
+            lastName: "Student",
             email: "approved.student@student.com",
             password: defaultHashed,
             role: UserRole.STUDENT,
@@ -986,7 +977,6 @@ async function main() {
             isActive: true,
             recoveryEmail: buildRecoveryEmail("ahmad", "najjar"),
             phone: "+970-59-200-0001",
-            profileImage: "https://cdn.tadreeby.com/users/approved-student.png",
             companyId: null,
             studentProfile: {
                 create: {
@@ -1016,17 +1006,16 @@ async function main() {
     // 2) Approved student #2 (AZU)
     const approvedStudent2 = await prisma.user.create({
         data: {
-            firstName: "Sara",
-            lastName: "Qasim",
+            firstName: "ApprovedTwo",
+            lastName: "Student",
             email: "approved.two.student@student.com",
             password: defaultHashed,
             role: UserRole.STUDENT,
             universityId: createdUniversities[1].id,
             personalID: generatePersonalId(),
             isActive: true,
-            recoveryEmail: buildRecoveryEmail("sara", "qasim"),
+            recoveryEmail: buildRecoveryEmail("approvedtwo", "student"),
             phone: "+970-59-200-0002",
-            profileImage: "https://cdn.tadreeby.com/users/approved-two-student.png",
             companyId: null,
             studentProfile: {
                 create: {
@@ -1066,7 +1055,6 @@ async function main() {
             isActive: true,
             recoveryEmail: buildRecoveryEmail("rejected", "student"),
             phone: "+970-59-200-0003",
-            profileImage: "https://cdn.tadreeby.com/users/rejected-student.png",
             companyId: null,
             studentProfile: {
                 create: {
@@ -1106,7 +1094,6 @@ async function main() {
             isActive: true,
             recoveryEmail: buildRecoveryEmail("pending", "student"),
             phone: "+970-59-200-0004",
-            profileImage: "https://cdn.tadreeby.com/users/pending-student.png",
             companyId: null,
             studentProfile: {
                 create: {
@@ -1399,7 +1386,7 @@ async function main() {
         {
             title: "Authentication & JWT Refresh Architecture",
             status: TaskStatus.IN_PROGRESS,
-            badge: "IN REVIEW",
+            badge: TaskBadge.IN_REVIEW,
             submissionCount: 32,
             needsReviewCount: 18,
             deadline: new Date("2026-08-28T23:59:00Z"),
@@ -1408,7 +1395,7 @@ async function main() {
         {
             title: "Set up development environment",
             status: TaskStatus.DONE,
-            badge: "GRADED",
+            badge: TaskBadge.GRADED,
             submissionCount: 50,
             needsReviewCount: 0,
             deadline: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
@@ -1417,7 +1404,7 @@ async function main() {
         {
             title: "Create React components for dashboard",
             status: TaskStatus.IN_PROGRESS,
-            badge: "ACTIVE",
+            badge: TaskBadge.ACTIVE,
             submissionCount: 20,
             needsReviewCount: 5,
             deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
