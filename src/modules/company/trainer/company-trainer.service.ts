@@ -188,7 +188,7 @@ export class CompanyTrainerService {
             about: {
                 description: internship.description,
                 techStack: this.normalizeStringArray(internship.techStack),
-                learningObjectives: internship.learningObjectives,
+                learningObjectives: this.normalizeLearningObjectives(internship.learningObjectives),
                 competencies: this.normalizeStringArray(internship.competencies),
             },
             overview: {
@@ -270,6 +270,20 @@ export class CompanyTrainerService {
                 return '';
             })
             .filter(Boolean);
+    }
+
+    private normalizeLearningObjectives(value: unknown): Array<{ title: string; description: string }> {
+        if (!Array.isArray(value)) return [];
+
+        return value.flatMap((item) => {
+            if (!item || typeof item !== 'object') return [];
+
+            const objective = item as Record<string, unknown>;
+            return [{
+                title: String(objective.title ?? ''),
+                description: String(objective.description ?? ''),
+            }];
+        });
     }
 
     async getTrainee(id: number, trainerId: number, companyId: number) {
