@@ -487,16 +487,18 @@ model Internship {
   venueAddress   String?
   venueEquipment String?
   remoteTools    String?
+  latitude       Float?
+  longitude      Float?
 
   // Capacity
   maxStudents   Int?
   enrolledCount Int  @default(0)
 
   // Complex data as JSON
-  techStack           Json?
-  learningObjectives  Json?
-  competencies        Json?
-  academicAllocations Json?
+  techStack          Json?
+  learningObjectives Json?
+  competencies       Json?
+  // academicAllocations Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

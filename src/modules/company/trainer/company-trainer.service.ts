@@ -70,7 +70,11 @@ export class CompanyTrainerService {
                     },
                 },
                 tasks: {
-                    include: { submissions: true },
+                    include: {
+                        submissions: {
+                            select: { id: true, score: true },
+                        },
+                    },
                     orderBy: { deadline: 'asc' },
                 },
                 attendance: {
@@ -110,13 +114,36 @@ export class CompanyTrainerService {
             entry.status === 'MARKED_PRESENT',
         ).length;
         const absentAttendance = attendance.filter((entry) => entry.status === 'MARKED_ABSENT').length;
-        const averageAttendanceRate = students.length > 0
-            ? students.reduce((sum, student) => sum + Number(student.attendanceRate ?? 0), 0) / students.length
+        const attendanceRate = totalAttendance > 0
+            ? (presentAttendance / totalAttendance) * 100
             : 0;
         const totalTasks = tasks.length;
         const completedTasks = tasks.filter((task) => task.status === 'DONE').length;
-        const maxStudents = internship.maxStudents ?? internship.opportunity.totalSeats;
-        const enrolledCount = students.length;
+        const needsGrading = tasks.reduce(
+            (sum, task) => sum + task.submissions.filter((submission) => submission.score === null).length,
+            0,
+        );
+        const academicPartners = new Map<number, {
+            university: string;
+            shortCode: string;
+            studentCount: number;
+        }>();
+
+        for (const student of students) {
+            const university = student.student.university;
+            const partner = academicPartners.get(university.id);
+            if (partner) {
+                partner.studentCount += 1;
+            } else {
+                academicPartners.set(university.id, {
+                    university: university.name,
+                    shortCode: university.shortCode,
+                    studentCount: 1,
+                });
+            }
+        }
+
+        const currentTask = tasks[0];
 
         return {
             id: internship.id,
@@ -129,33 +156,17 @@ export class CompanyTrainerService {
                 trainingType: internship.trainingType,
                 location: internship.location,
                 company: {
-                    id: internship.company.id,
                     name: internship.company.name,
                     logo: internship.company.logo,
                 },
-                trainer: internship.trainer,
-            },
-            opportunity: {
-                id: internship.opportunity.id,
-                title: internship.opportunity.title,
-                description: internship.opportunity.description,
-                requiredSkills: internship.opportunity.requiredSkills
-                    ?.split(',')
-                    .map((skill) => skill.trim())
-                    .filter(Boolean) ?? [],
-                duration: internship.opportunity.duration,
-                meetingLink: internship.opportunity.meetingLink,
-            },
-            capacity: {
-                maxStudents,
-                enrolledCount,
-                availableSeats: Math.max(0, maxStudents - enrolledCount),
+                trainer: {
+                    firstName: internship.trainer?.firstName,
+                    lastName: internship.trainer?.lastName,
+                },
             },
             stats: {
-                internshipProgress: {
+                progress: {
                     percent: internship.progressPercent,
-                    currentMilestone: internship.currentSprint,
-                    totalMilestones: internship.totalSprints,
                     weeksCompleted: internship.weeksCompleted ?? 0,
                     weeksTotal: internship.weeksTotal ?? 0,
                     hoursCompleted: internship.weeksCompleted && internship.hoursPerWeek
@@ -165,16 +176,12 @@ export class CompanyTrainerService {
                 },
                 tasks: {
                     total: totalTasks,
-                    completed: completedTasks,
                     inProgress: tasks.filter((task) => task.status === 'IN_PROGRESS').length,
-                    needsGrading: tasks.reduce((sum, task) => sum + task.needsReviewCount, 0),
-                    completedPercent: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
+                    needsGrading,
                 },
                 attendance: {
-                    totalRecords: totalAttendance,
-                    presentRecords: presentAttendance,
                     absentRecords: absentAttendance,
-                    ratePercent: Number(averageAttendanceRate.toFixed(2)),
+                    ratePercent: Number(attendanceRate.toFixed(2)),
                     studentsTracked: students.length,
                 },
             },
@@ -198,31 +205,54 @@ export class CompanyTrainerService {
                 trainingVenue: {
                     name: internship.venueName,
                     address: internship.venueAddress,
-                    remoteTools: internship.remoteTools
-                        ?.split(/[;,\n]/)
-                        .map((tool) => tool.trim())
-                        .filter(Boolean) ?? [],
+                    latitude: internship.latitude,
+                    longitude: internship.longitude,
+                    equipment: internship.venueEquipment,
                 },
-                universitySupervisors: internship.supervisors.map(({ role: assignmentRole, supervisor, ...assignment }) => ({
-                    ...assignment,
-                    role: supervisor.role,
-                    assignmentRole,
-                    supervisor,
-                })),
+                academicPartners: Array.from(academicPartners.values()),
             },
-            students: students.map((entry) => ({
+            currentTask: currentTask ? {
+                id: currentTask.id,
+                title: currentTask.title,
+                badge: currentTask.badge,
+                deadline: currentTask.deadline,
+                submissionCount: currentTask.submissions.length,
+                expectedSubmissions: students.length,
+                needsReviewCount: currentTask.submissions.filter((submission) => submission.score === null).length,
+                rubricUrl: currentTask.rubricUrl,
+            } : null,
+            trainees: students.map((entry) => ({
                 id: entry.student.user.id,
                 firstName: entry.student.user.firstName,
                 lastName: entry.student.user.lastName,
-                profileImage: entry.student.user.profileImage,
-                university: entry.student.university,
+                university: entry.student.university.name,
                 attendanceRate: Number(entry.attendanceRate ?? 0),
                 status: entry.status,
             })),
-            tasks,
-            attendance,
-            createdAt: internship.createdAt,
-            updatedAt: internship.updatedAt,
+            supervisors: internship.supervisors.map(({ role, supervisor, university }) => ({
+                id: supervisor.id,
+                firstName: supervisor.firstName,
+                lastName: supervisor.lastName,
+                department: supervisor.supervisorProfile?.department,
+                university: university.name,
+                role: role ?? supervisor.role,
+            })),
+            logistics: {
+                attendanceModel: {
+                    type: internship.trainingType === 'REMOTE' ? 'Remote' : 'On-Site Lab + QR Verification',
+                    checkInStart: internship.checkInStart,
+                    checkInEnd: internship.checkInEnd,
+                    minPercent: internship.attendanceMinPercent,
+                },
+                workingSchedule: {
+                    days: internship.workingDays,
+                    hours: internship.dailyHours && internship.workStartTime && internship.workEndTime
+                        ? `${internship.workStartTime} - ${internship.workEndTime}`
+                        : null,
+                    notes: null,
+                },
+            },
+            mostActiveTrainees: [],
         };
     }
 
