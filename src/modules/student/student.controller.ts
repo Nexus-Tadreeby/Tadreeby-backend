@@ -134,7 +134,7 @@ export class StudentController {
   }
 
 
-  @Get(['opportunities/:opportunityId', 'opportunity/:opportunityId'])
+  @Get(['opportunities/:opportunityId'])
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles([UserRole.STUDENT])
   @ApiOperation({ summary: 'Get a single training opportunity by id' })
@@ -156,7 +156,7 @@ export class StudentController {
   }
 
   // @Post('apply/:opportunityId')
-  @Post(['opportunities/:opportunityId/apply', 'opportunity/:opportunityId/apply'])
+  @Post(['opportunities/:opportunityId/apply'])
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles([UserRole.STUDENT])
   @ApiOperation({ summary: 'Apply for a training opportunity' })
@@ -170,7 +170,7 @@ export class StudentController {
 
 
   // @Get('internship/:internshipId')
-  @Get(['internships/:internshipId', 'internship/:internshipId'])
+  @Get(['internships/:internshipId'])
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles([UserRole.STUDENT])
   @ApiOperation({ summary: 'Get internship details with tasks and submissions' })

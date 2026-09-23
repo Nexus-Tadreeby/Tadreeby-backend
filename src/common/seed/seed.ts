@@ -1386,6 +1386,12 @@ async function main() {
             badge: TaskBadge.IN_REVIEW,
             deadline: new Date("2026-08-28T23:59:00Z"),
             rubricUrl: "https://docs.google.com/document/d/1TtGZ8mJFs77N_CKyq4IcClZB9G9LEQNo57s9pJJodx4/edit?tab=t.0",
+            rubric: [
+                { title: "Code Quality & Standards", weight: 30 },
+                { title: "Core Functionality & Logic", weight: 40 },
+                { title: "Documentation & Schema", weight: 30 },
+                { title: "Git Workflow & Testing", weight: 10 },
+            ],
         },
         {
             title: "Set up development environment",
@@ -1421,6 +1427,7 @@ async function main() {
                 status: t.status,
                 badge: t.badge,
                 rubricUrl: t.rubricUrl,
+                rubric: t.rubric,
             },
         });
         createdTasks.push(task);
@@ -1454,6 +1461,12 @@ async function main() {
             type: EvaluationType.TRAINER,
             score: 88,
             feedback: "Excellent performance so far.",
+            breakdown: [
+                { title: "Code Quality", score: 94 },
+                { title: "Punctuality", score: 96 },
+                { title: "Problem Solving", score: 88 },
+                { title: "Agile Collaboration", score: 90 },
+            ],
             createdAt: new Date(),
         },
     });

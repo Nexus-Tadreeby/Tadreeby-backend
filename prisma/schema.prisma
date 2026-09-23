@@ -593,6 +593,7 @@ model Task {
   status           TaskStatus @default(TODO)
   badge            TaskBadge?
   rubricUrl        String?
+  rubric           Json?
   submissionCount  Int        @default(0)
   needsReviewCount Int        @default(0)
 
@@ -674,6 +675,7 @@ model Evaluation {
   type         EvaluationType
   score        Float?
   feedback     String?
+  breakdown    Json?
   createdAt    DateTime       @default(now())
 
   evaluator  User           @relation("UserEvaluations", fields: [evaluatorId], references: [id], onDelete: Cascade)
