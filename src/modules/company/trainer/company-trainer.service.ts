@@ -5,6 +5,10 @@ import { DatabaseService } from 'src/database/database.service';
 export class CompanyTrainerService {
     constructor(private readonly prisma: DatabaseService) { }
 
+    private success<T>(data: T) {
+        return { success: true, data };
+    }
+
     async getDashboard(trainerId: number, companyId: number) {
         const [allocatedTrainees, activeInternships, tasksDue, tasksDone] = await Promise.all([
             this.prisma.internshipStudent.count({
@@ -19,19 +23,21 @@ export class CompanyTrainerService {
             }),
         ]);
 
-        return {
+        return this.success({
             allocatedTrainees,
             activeInternships,
             tasksDue,
             tasksDone,
-        };
+        });
     }
 
     async getTrainees(trainerId: number, companyId: number) {
-        return this.prisma.internshipStudent.findMany({
+        const data = await this.prisma.internshipStudent.findMany({
             where: { internship: { companyId, trainerId } },
             include: { student: { include: { user: true } }, internship: true },
         });
+
+        return this.success(data);
     }
 
     async getInternship(id: number, trainerId: number, companyId: number) {
@@ -145,16 +151,16 @@ export class CompanyTrainerService {
 
         const currentTask = tasks[0];
 
-        return {
+        return this.success({
             id: internship.id,
             status: internship.status,
             header: {
-                title: internship.title,
-                subtitle: internship.subtitle,
+                title: internship.opportunity.title,
+                type : internship.opportunity.type,
                 cohort: internship.cohort,
-                coverImage: internship.coverImage,
-                trainingType: internship.trainingType,
-                location: internship.location,
+                coverImage: internship.opportunity.coverImage,
+                trainingType: internship.opportunity.type,
+                location: internship.opportunity.location,
                 company: {
                     name: internship.company.name,
                     logo: internship.company.logo,
@@ -167,12 +173,14 @@ export class CompanyTrainerService {
             stats: {
                 progress: {
                     percent: internship.progressPercent,
+                    currentMilestone: internship.currentMilestone ?? 0,
+                    totalMilestones: internship.totalMilestones ?? 0,
                     weeksCompleted: internship.weeksCompleted ?? 0,
                     weeksTotal: internship.weeksTotal ?? 0,
-                    hoursCompleted: internship.weeksCompleted && internship.hoursPerWeek
-                        ? internship.weeksCompleted * internship.hoursPerWeek
+                    hoursCompleted: internship.weeksCompleted && internship.opportunity.hoursPerWeek
+                        ? internship.weeksCompleted * internship.opportunity.hoursPerWeek
                         : 0,
-                    hoursTotal: internship.hoursTotal ?? 0,
+                    hoursTotal: internship.opportunity.hoursTotal ?? 0,
                 },
                 tasks: {
                     total: totalTasks,
@@ -186,10 +194,10 @@ export class CompanyTrainerService {
                 },
             },
             about: {
-                description: internship.description,
-                techStack: this.normalizeStringArray(internship.techStack),
-                learningObjectives: internship.learningObjectives,
-                competencies: this.normalizeStringArray(internship.competencies),
+                description: internship.opportunity.description,
+                techStack: this.normalizeStringArray(internship.opportunity.techStack),
+                learningObjectives: internship.opportunity.learningObjectives,
+                competencies: this.normalizeStringArray(internship.opportunity.competencies),
             },
             overview: {
                 trainingPeriod: {
@@ -198,16 +206,16 @@ export class CompanyTrainerService {
                     weeksRemaining: Math.max(0, (internship.weeksTotal ?? 0) - (internship.weeksCompleted ?? 0)),
                 },
                 totalDuration: {
-                    hours: internship.hoursTotal,
-                    hoursPerWeek: internship.hoursPerWeek,
-                    workingDays: internship.workingDays,
+                    hours: internship.opportunity.hoursTotal,
+                    hoursPerWeek: internship.opportunity.hoursPerWeek,
+                    workingDays: internship.opportunity.workDays,
                 },
                 trainingVenue: {
-                    name: internship.venueName,
-                    address: internship.venueAddress,
-                    latitude: internship.latitude,
-                    longitude: internship.longitude,
-                    equipment: internship.venueEquipment,
+                    name: internship.opportunity.venueName,
+                    address: internship.opportunity.venueAddress,
+                    latitude: internship.opportunity.latitude,
+                    longitude: internship.opportunity.longitude,
+                    equipment: internship.opportunity.venueEquipment,
                 },
                 academicPartners: Array.from(academicPartners.values()),
             },
@@ -239,21 +247,21 @@ export class CompanyTrainerService {
             })),
             logistics: {
                 attendanceModel: {
-                    type: internship.trainingType === 'REMOTE' ? 'Remote' : 'On-Site Lab + QR Verification',
-                    checkInStart: internship.checkInStart,
-                    checkInEnd: internship.checkInEnd,
-                    minPercent: internship.attendanceMinPercent,
+                    type: internship.opportunity.type === 'REMOTE' ? 'Remote' : 'On-Site Lab + QR Verification',
+                    checkInStart: internship.opportunity.checkInStart,
+                    checkInEnd: internship.opportunity.checkInEnd,
+                    minPercent: internship.opportunity.attendanceMinPercent,
                 },
                 workingSchedule: {
-                    days: internship.workingDays,
-                    hours: internship.dailyHours && internship.workStartTime && internship.workEndTime
-                        ? `${internship.workStartTime} - ${internship.workEndTime}`
+                    days: internship.opportunity.workDays,
+                    hours: internship.opportunity.dailyHours && internship.opportunity.workStartTime && internship.opportunity.workEndTime
+                        ? `${internship.opportunity.workStartTime} - ${internship.opportunity.workEndTime}`
                         : null,
                     notes: null,
                 },
             },
             mostActiveTrainees: [],
-        };
+        });
     }
 
     private normalizeStringArray(value: unknown): string[] {
@@ -279,7 +287,7 @@ export class CompanyTrainerService {
         });
 
         if (!record) throw new NotFoundException('Trainee not found for this trainer');
-        return record;
+        return this.success(record);
     }
 
     async getTraineeProgress(id: number, trainerId: number, companyId: number) {
@@ -293,12 +301,12 @@ export class CompanyTrainerService {
         const tasks = record.internship.tasks.length;
         const done = record.internship.tasks.filter((task) => task.status === 'DONE').length;
 
-        return {
+        return this.success({
             traineeId: record.studentId,
             totalTasks: tasks,
             completedTasks: done,
             progress: tasks === 0 ? 0 : (done / tasks) * 100,
-        };
+        });
     }
 
     async completeTrainee(id: number, trainerId: number, companyId: number) {
@@ -309,9 +317,11 @@ export class CompanyTrainerService {
 
         if (!record) throw new NotFoundException('Trainee not found');
 
-        return this.prisma.internship.update({
+        const data = await this.prisma.internship.update({
             where: { id: record.internshipId },
             data: { status: 'COMPLETED' },
         });
+
+        return this.success(data);
     }
 }

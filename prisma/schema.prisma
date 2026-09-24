@@ -119,6 +119,13 @@ enum UserAction {
   PROFILE_UPDATED
 }
 
+enum OpportunityStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  ARCHIVED
+}
+
 // ! User Model
 
 model User {
@@ -153,6 +160,7 @@ model User {
   university             University?            @relation(fields: [universityId], references: [id], onDelete: SetNull)
   company                Company?               @relation(fields: [companyId], references: [id], onDelete: SetNull)
   internshipSupervisions InternshipSupervisor[] @relation("SupervisorInternships")
+  trainingOpportunities  TrainingOpportunity[]  @relation("OpportunityTrainer")
   passwordResetCodes     PasswordResetCode[]
   userActivityLogs       UserActivityLog[]
   userStatuses           UserStatus[]
@@ -241,7 +249,7 @@ model University {
   logo        String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   users                 User[]
   // internships Internship[]
@@ -268,15 +276,23 @@ model UniversityAuditLog {
 // ! Company Model
 
 model Company {
-  id          Int     @id @default(autoincrement())
-  name        String
-  email       String?
-  shortCode   String  @unique
-  phone       String?
-  location    String?
-  description String?
-  logo        String?
-  isActive    Boolean @default(true)
+  id                 Int     @id @default(autoincrement())
+  name               String
+  email              String?
+  shortCode          String  @unique
+  phone              String?
+  location           String?
+  description        String?
+  logo               String?
+  isActive           Boolean @default(true)
+  internsTrained     Int?
+  completionRate     Float?
+  universityPartners Int?
+  avgStudentRating   Float?
+  verifiedByTadreeby Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   users         User[]
   internships   Internship[]
@@ -365,10 +381,13 @@ model SupervisorStudent {
 //! Company Trainer Profile Model
 
 model CompanyTrainerProfile {
-  userId         Int     @id
-  companyId      Int
-  position       String?
-  specialization String?
+  userId          Int     @id
+  companyId       Int
+  position        String?
+  specialization  String?
+  bio             String?
+  yearsExperience Int?
+  achievements    Json?
 
   company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -376,23 +395,106 @@ model CompanyTrainerProfile {
 
 // ! Training Opportunity Model
 
+// model TrainingOpportunity {
+//   id                  Int          @id @default(autoincrement())
+//   companyId           Int
+//   trainerId           Int?
+//   title               String
+//   description         String
+//   requiredSkills      String?
+//   duration            String?
+//   totalSeats          Int
+//   location            String?
+//   meetingLink         String?
+//   isActive            Boolean      @default(true)
+//   type                TrainingType @default(ONSITE)
+//   applicationDeadline DateTime?
+//   stipend             Float?       @default(0)
+//   daysPerWeek         Int?
+//   Field               String?
+//   workDays            String?
+//   workHours           String?
+//   shortPitch          String?
+
+//   applications Application[]
+//   internships  Internship[]
+
+//   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+// }
+
 model TrainingOpportunity {
-  id             Int          @id @default(autoincrement())
-  companyId      Int
-  title          String
-  description    String
-  requiredSkills String?
-  duration       String?
-  totalSeats     Int
-  location       String?
-  meetingLink    String?
-  isActive       Boolean      @default(true)
-  type           TrainingType @default(ONSITE)
+  id                  Int               @id @default(autoincrement())
+  companyId           Int
+  trainerId           Int?
+  title               String
+  description         String
+  requiredSkills      String?
+  duration            String?
+  totalSeats          Int
+  location            String?
+  meetingLink         String?
+  isActive            Boolean           @default(true)
+  status              OpportunityStatus @default(DRAFT)
+  type                TrainingType      @default(ONSITE)
+  applicationDeadline DateTime?
+  stipend             Float?            @default(0)
+  daysPerWeek         Int?
+  trainingField       String?
+  workDays            String?
+  workHours           String?
+  cohort              String?
+  coverImage          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  publishedAt DateTime?
+  closedAt    DateTime?
+
+  // Duration & Schedule
+  hoursTotal    Int?
+  hoursPerWeek  Int?
+  dailyHours    Int?
+  startDate     DateTime?
+  endDate       DateTime?
+  workStartTime String?
+  workEndTime   String?
+
+  // Attendance
+  attendanceMinPercent Float?  @default(90)
+  checkInStart         String?
+  checkInEnd           String?
+
+  // Venue
+  venueName      String?
+  venueAddress   String?
+  venueEquipment String?
+  remoteTools    String?
+  latitude       Float?
+  longitude      Float?
+
+  // shared Content 
+  techStack          Json?
+  learningObjectives Json?
+  competencies       Json?
+  curriculum         Json?
+  responsibilities   Json?
+  qualifications     Json?
+  benefits           Json?
+  certificateInfo    Json?
 
   applications Application[]
   internships  Internship[]
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  trainer User?   @relation("OpportunityTrainer", fields: [trainerId], references: [id], onDelete: SetNull)
+  // user    User?   @relation(fields: [userId], references: [id])
+  // userId  Int?
+
+  @@index([companyId])
+  @@index([isActive])
+  @@index([status])
+  @@index([trainerId])
 }
 
 model Application {
@@ -444,6 +546,79 @@ model Application {
 //   // @@index([universityId, status])
 // }
 
+// model Internship {
+//   id            Int              @id @default(autoincrement())
+//   opportunityId Int
+//   companyId     Int
+//   trainerId     Int?
+//   status        InternshipStatus @default(ACTIVE)
+
+//   // Display
+//   title        String
+//   subtitle     String?
+//   description  String?
+//   coverImage   String?
+//   cohort       String?
+//   trainingType TrainingType @default(ONSITE)
+//   location     String?
+
+//   // Progress
+//   progressPercent Int  @default(0)
+//   currentSprint   Int  @default(0)
+//   totalSprints    Int  @default(0)
+//   weeksTotal      Int?
+//   weeksCompleted  Int?
+//   hoursTotal      Int?
+//   hoursPerWeek    Int?
+
+//   // Schedule
+//   startDate     DateTime?
+//   endDate       DateTime?
+//   workingDays   String?
+//   dailyHours    Int?
+//   workStartTime String?
+//   workEndTime   String?
+
+//   // Attendance rules
+//   attendanceMinPercent Float?  @default(90)
+//   checkInStart         String?
+//   checkInEnd           String?
+
+//   // Venue
+//   venueName      String?
+//   venueAddress   String?
+//   venueEquipment String?
+//   remoteTools    String?
+//   latitude       Float?
+//   longitude      Float?
+
+//   // Capacity
+//   maxStudents   Int?
+//   enrolledCount Int  @default(0)
+
+//   // Complex data as JSON
+//   techStack          Json?
+//   learningObjectives Json?
+//   competencies       Json?
+//   // academicAllocations Json?
+
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   students    InternshipStudent[]
+//   attendance  Attendance[]
+//   evaluations Evaluation[]
+//   tasks       Task[]
+//   supervisors InternshipSupervisor[]
+
+//   company     Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+//   opportunity TrainingOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+//   trainer     User?               @relation("TrainerInternship", fields: [trainerId], references: [id], onDelete: SetNull)
+
+//   @@index([companyId])
+//   @@index([status])
+// }
+
 model Internship {
   id            Int              @id @default(autoincrement())
   opportunityId Int
@@ -451,58 +626,23 @@ model Internship {
   trainerId     Int?
   status        InternshipStatus @default(ACTIVE)
 
-  // Display
-  title        String
-  subtitle     String?
-  description  String?
-  coverImage   String?
-  cohort       String?
-  trainingType TrainingType @default(ONSITE)
-  location     String?
-
-  // Progress
-  progressPercent Int  @default(0)
-  currentSprint   Int  @default(0)
-  totalSprints    Int  @default(0)
-  weeksTotal      Int?
-  weeksCompleted  Int?
-  hoursTotal      Int?
-  hoursPerWeek    Int?
-
-  // Schedule
+  // Cohort 
+  cohort        String?
   startDate     DateTime?
   endDate       DateTime?
-  workingDays   String?
-  dailyHours    Int?
-  workStartTime String?
-  workEndTime   String?
+  enrolledCount Int       @default(0)
 
-  // Attendance rules
-  attendanceMinPercent Float?  @default(90)
-  checkInStart         String?
-  checkInEnd           String?
-
-  // Venue
-  venueName      String?
-  venueAddress   String?
-  venueEquipment String?
-  remoteTools    String?
-  latitude       Float?
-  longitude      Float?
-
-  // Capacity
-  maxStudents   Int?
-  enrolledCount Int  @default(0)
-
-  // Complex data as JSON
-  techStack          Json?
-  learningObjectives Json?
-  competencies       Json?
-  // academicAllocations Json?
+  // Progress
+  progressPercent  Int  @default(0)
+  currentMilestone Int  @default(0)
+  totalMilestones  Int  @default(0)
+  weeksTotal       Int?
+  weeksCompleted   Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Relations
   students    InternshipStudent[]
   attendance  Attendance[]
   evaluations Evaluation[]
@@ -514,6 +654,7 @@ model Internship {
   trainer     User?               @relation("TrainerInternship", fields: [trainerId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
+  @@index([opportunityId])
   @@index([status])
 }
 

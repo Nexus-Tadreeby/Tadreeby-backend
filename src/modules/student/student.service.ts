@@ -459,42 +459,310 @@ export class StudentService {
 
 
   async getOpportunityById(userId: number, opportunityId: number) {
-    const opportunity = await this.prisma.trainingOpportunity.findUnique({
-      where: { id: opportunityId, isActive: true },
-      include: { company: true },
-    });
+    const [opportunity, studentProfile, existingApplication] = await Promise.all([
+      this.prisma.trainingOpportunity.findUnique({
+        where: { id: opportunityId, isActive: true },
+        include: {
+          company: true,
+          trainer: {
+            include: {
+              trainerProfile: true,
+            },
+          },
+          applications: {
+            where: { studentId: userId },
+            select: { id: true, status: true },
+            take: 1,
+            orderBy: { appliedAt: 'desc' },
+          },
+          internships: {
+            select: { id: true },
+          },
+        },
+      }),
+      this.prisma.studentProfile.findUnique({
+        where: { userId },
+        select: { approvalStatus: true, skills: true, major: true, cvUrl: true },
+      }),
+      this.prisma.application.findFirst({
+        where: { studentId: userId, opportunityId },
+        select: { id: true, status: true },
+      }),
+    ]);
 
     if (!opportunity) {
       throw new NotFoundException('Opportunity not found');
     }
 
-    return this.mapOpportunity(opportunity);
+    const cvText = await this.extractCvText(studentProfile?.cvUrl ?? null);
+    return this.mapOpportunity(opportunity, studentProfile, existingApplication, cvText);
   }
 
-  private mapOpportunity(opportunity: any) {
-    const requiredSkills = opportunity.requiredSkills
-      ? opportunity.requiredSkills
-        .split(',')
-        .map((skill: string) => skill.trim())
-        .filter(Boolean)
-      : [];
+  private async mapOpportunity(opportunity: any, studentProfile?: { approvalStatus?: string; skills?: string | null; major?: string | null; cvUrl?: string | null } | null, existingApplication?: { id: number; status: string } | null, cvText?: string) {
+    const requiredSkills = this.parseSkillList(opportunity.requiredSkills);
+    const studentSkills = this.parseSkillList(studentProfile?.skills ?? '');
+    const matchedSkills = requiredSkills.filter((skill) =>
+      studentSkills.some((studentSkill) => this.normalizeSkill(studentSkill) === this.normalizeSkill(skill)),
+    );
+    const majorMatch = this.isMajorRelevantToOpportunity(studentProfile?.major, opportunity.trainingField);
+    const cvMatchPercent = this.calculateCvTextMatch(requiredSkills, cvText ?? '', studentProfile?.major ?? null, opportunity.trainingField ?? null);
+    const profileMatch = this.calculateProfileMatch(requiredSkills, matchedSkills.length, majorMatch, cvMatchPercent);
+
+    const durationMonths = this.parseDurationMonths(opportunity.duration);
+    const daysUntilDeadline = opportunity.applicationDeadline
+      ? Math.max(0, Math.ceil((new Date(opportunity.applicationDeadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+      : 0;
+
+    const trainingType = opportunity.type === 'REMOTE'
+      ? 'REMOTE'
+      : opportunity.type === 'HYBRID'
+        ? 'HYBRID'
+        : 'ONSITE';
+
+    const workingSchedule = {
+      days: opportunity.workDays ?? null,
+      startTime: opportunity.workStartTime ?? null,
+      endTime: opportunity.workEndTime ?? null,
+      dailyHours: opportunity.dailyHours ?? null,
+      notes: opportunity.meetingLink ?? null,
+    };
+
+    const companyStats = {
+      internsTrained: opportunity.company?.internsTrained ?? 0,
+      completionRate: opportunity.company?.completionRate ?? 0,
+      universityPartners: opportunity.company?.universityPartners ?? 0,
+      avgStudentRating: opportunity.company?.avgStudentRating ?? 0,
+    };
 
     return {
       id: opportunity.id,
-      company: opportunity.company?.name || 'Company',
-      companyId: opportunity.companyId,
-      internship: opportunity.title,
-      field: opportunity.title,
-      trainer: 'Company Team',
-      seats: opportunity.totalSeats,
-      requiredSkills,
-      type: opportunity.type === 'REMOTE' ? 'Remote' : opportunity.type === 'HYBRID' ? 'Hybrid' : 'On-site',
-      location: opportunity.location || 'Remote',
-      startDate: 'Open now',
-      endDate: opportunity.duration || 'Flexible',
-      image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80',
-      description: opportunity.description,
+      status: opportunity.status,
+      isActive: opportunity.isActive,
+      header: {
+        title: opportunity.title,
+        // subtitle: trainingType,
+        trainingType: trainingType,
+        cohort: opportunity.cohort ?? null,
+        coverImage: opportunity.coverImage ?? null,
+        location: opportunity.location ?? null,
+        company: {
+          name: opportunity.company?.name ?? null,
+          logo: opportunity.company?.logo ?? null,
+          verifiedByTadreeby: opportunity.company?.verifiedByTadreeby ?? false,
+        },
+        mentor: opportunity.trainer
+          ? {
+            id: opportunity.trainer.id,
+            firstName: opportunity.trainer.firstName,
+            lastName: opportunity.trainer.lastName,
+            position: opportunity.trainer.trainerProfile?.position ?? null,
+            bio: opportunity.trainer.trainerProfile?.bio ?? null,
+            yearsExperience: opportunity.trainer.trainerProfile?.yearsExperience ?? null,
+            profileImage: opportunity.trainer.profileImage ?? null,
+          }
+          : null,
+      },
+      stats: {
+        seats: {
+          total: opportunity.totalSeats ?? 0,
+          available: Math.max(0, (opportunity.totalSeats ?? 0) - (opportunity.internships?.length ?? 0)),
+        },
+        duration: {
+          months: durationMonths,
+          hours: opportunity.hoursTotal ?? 0,
+          hoursPerWeek: opportunity.hoursPerWeek ?? 0,
+        },
+        stipend: opportunity.stipend ?? 0,
+        applicationDeadline: opportunity.applicationDeadline ?? null,
+        daysUntilDeadline: daysUntilDeadline,
+      },
+      about: {
+        description: opportunity.description ?? null,
+        techStack: Array.isArray(opportunity.techStack) ? opportunity.techStack : [],
+        learningObjectives: Array.isArray(opportunity.learningObjectives) ? opportunity.learningObjectives : [],
+        competencies: Array.isArray(opportunity.competencies) ? opportunity.competencies : [],
+      },
+      overview: {
+        trainingPeriod: {
+          startDate: opportunity.startDate ?? null,
+          endDate: opportunity.endDate ?? null,
+        },
+        totalDuration: {
+          hours: opportunity.hoursTotal ?? 0,
+          hoursPerWeek: opportunity.hoursPerWeek ?? 0,
+          workingDays: opportunity.workDays ?? null,
+          durationLabel: opportunity.duration ?? null,
+        },
+        trainingVenue: {
+          name: opportunity.venueName ?? null,
+          address: opportunity.venueAddress ?? null,
+          latitude: opportunity.latitude ?? null,
+          longitude: opportunity.longitude ?? null,
+          equipment: opportunity.venueEquipment ?? null,
+          remoteTools: opportunity.remoteTools ?? null,
+        },
+        engineeringField: opportunity.trainingField ?? null,
+      },
+      logistics: {
+        attendanceModel: {
+          type: this.formatAttendanceType(opportunity.type),
+          checkInStart: opportunity.checkInStart ?? null,
+          checkInEnd: opportunity.checkInEnd ?? null,
+          minPercent: opportunity.attendanceMinPercent ?? 0,
+        },
+        workingSchedule,
+      },
+      curriculum: Array.isArray(opportunity.curriculum) ? opportunity.curriculum : [],
+      responsibilities: Array.isArray(opportunity.responsibilities) ? opportunity.responsibilities : [],
+      qualifications: {
+        academic: Array.isArray((opportunity.qualifications as any)?.academic) ? (opportunity.qualifications as any).academic : [],
+        technical: Array.isArray((opportunity.qualifications as any)?.technical) ? (opportunity.qualifications as any).technical : [],
+      },
+      // benefits: Array.isArray(opportunity.benefits) ? opportunity.benefits : [],
+      certificateInfo: opportunity.certificateInfo ?? null,
+      companyStats,
+      application: {
+        isEligible: Boolean(studentProfile),
+        profileMatch,
+        alreadyApplied: Boolean(existingApplication),
+        status: existingApplication?.status ?? null,
+      },
     };
+  }
+
+  private calculateProfileMatch(requiredSkills: string[], matchedSkillCount: number, majorMatch: boolean, cvMatchPercent: number): number {
+    if (requiredSkills.length === 0) return 100;
+
+    const skillMatchPercent = Math.round((matchedSkillCount / requiredSkills.length) * 100);
+    const majorBonus = majorMatch ? 20 : 0;
+    const weightedScore = (skillMatchPercent * 0.7) + (cvMatchPercent * 0.25) + majorBonus;
+
+    return Math.min(100, Math.round(weightedScore));
+  }
+
+  private calculateCvTextMatch(requiredSkills: string[], cvText: string, studentMajor?: string | null, opportunityField?: string | null): number {
+    if (!cvText || requiredSkills.length === 0) {
+      return 0;
+    }
+
+    const normalizedText = this.normalizeCvText(cvText);
+    const relevantSkillMatches = requiredSkills.filter((skill) => {
+      const normalizedSkill = this.normalizeCvText(skill);
+      return normalizedSkill && normalizedText.includes(normalizedSkill);
+    });
+
+    const skillCoverage = (relevantSkillMatches.length / requiredSkills.length) * 100;
+    const majorBonus = this.isMajorRelevantToOpportunity(studentMajor, opportunityField) ? 20 : 0;
+
+    return Math.min(100, Math.round(skillCoverage + majorBonus));
+  }
+
+  private normalizeCvText(value: string): string {
+    return value
+      .toLowerCase()
+      .replace(/https?:\/\/\S+/g, ' ')
+      .replace(/[^a-z0-9\s+.#]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private async extractCvText(cvUrl?: string | null): Promise<string> {
+    if (!cvUrl || !cvUrl.startsWith('data:')) {
+      return '';
+    }
+
+    try {
+      const match = cvUrl.match(/^data:(.*?);base64,(.*)$/i);
+      if (!match) {
+        return '';
+      }
+
+      const mimeType = match[1]?.toLowerCase() ?? '';
+      const base64Data = match[2];
+      const buffer = Buffer.from(base64Data, 'base64');
+
+      if (mimeType.includes('pdf')) {
+        const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+        const pdf = await pdfjs.getDocument({ data: buffer }).promise;
+        const pages: string[] = [];
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const pageText = content.items
+            .map((item: any) => ('str' in item ? item.str : ''))
+            .join(' ');
+          pages.push(pageText);
+        }
+
+        return pages.join(' ');
+      }
+
+      if (mimeType.includes('word') || mimeType.includes('officedocument') || mimeType.includes('document')) {
+        const mammoth = await import('mammoth');
+        const result = await mammoth.extractRawText({ buffer });
+        return result.value ?? '';
+      }
+
+      return buffer.toString('utf8');
+    } catch (error) {
+      return '';
+    }
+  }
+
+  private isMajorRelevantToOpportunity(studentMajor?: string | null, opportunityField?: string | null): boolean {
+    if (!studentMajor || !opportunityField) return false;
+
+    const normalize = (value: string) => value
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const major = normalize(studentMajor);
+    const field = normalize(opportunityField);
+
+    if (!major || !field) return false;
+    if (major === field) return true;
+    if (major.includes(field) || field.includes(major)) return true;
+
+    const majorWords = new Set(major.split(' ').filter(Boolean));
+    const fieldWords = new Set(field.split(' ').filter(Boolean));
+    const overlap = [...majorWords].filter((word) => fieldWords.has(word));
+
+    return overlap.length > 0;
+  }
+
+  private parseSkillList(value: string | null | undefined): string[] {
+    if (!value) return [];
+
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => String(item).trim())
+        .filter(Boolean);
+    }
+
+    return String(value)
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  private parseDurationMonths(value: string | null | undefined): number | null {
+    if (!value) return null;
+
+    const match = String(value).match(/(\d+(?:\.\d+)?)/);
+    if (!match) return null;
+
+    return Number(match[1]);
+  }
+
+  private formatAttendanceType(type: string | null | undefined): string {
+    if (!type) return 'On-Site Lab + QR Verification';
+
+    if (type === 'REMOTE') return 'Remote';
+    if (type === 'HYBRID') return 'On-Site Lab + QR Verification';
+    return 'On-Site Lab + QR Verification';
   }
 
 
@@ -1224,36 +1492,41 @@ export class StudentService {
         select: {
           id: true,
           status: true,
-          title: true,
-          subtitle: true,
-          description: true,
-          coverImage: true,
           cohort: true,
-          trainingType: true,
-          location: true,
           progressPercent: true,
+          currentMilestone: true,
+          totalMilestones: true,
           weeksCompleted: true,
           weeksTotal: true,
-          hoursTotal: true,
-          hoursPerWeek: true,
           startDate: true,
           endDate: true,
-          workingDays: true,
-          dailyHours: true,
-          workStartTime: true,
-          workEndTime: true,
-          attendanceMinPercent: true,
-          checkInStart: true,
-          checkInEnd: true,
-          venueName: true,
-          venueAddress: true,
-          venueEquipment: true,
-          remoteTools: true,
-          latitude: true,
-          longitude: true,
-          techStack: true,
-          learningObjectives: true,
-          competencies: true,
+          opportunity: {
+            select: {
+              title: true,
+              description: true,
+              coverImage: true,
+              type: true,
+              location: true,
+              hoursTotal: true,
+              hoursPerWeek: true,
+              workDays: true,
+              dailyHours: true,
+              workStartTime: true,
+              workEndTime: true,
+              attendanceMinPercent: true,
+              checkInStart: true,
+              checkInEnd: true,
+              venueName: true,
+              venueAddress: true,
+              venueEquipment: true,
+              remoteTools: true,
+              latitude: true,
+              longitude: true,
+              techStack: true,
+              learningObjectives: true,
+              competencies: true,
+            },
+          },
           company: { select: { name: true, logo: true } },
           trainer: { select: { id: true, firstName: true, lastName: true } },
         },
@@ -1347,12 +1620,12 @@ export class StudentService {
       id: internship.id,
       status: internship.status,
       header: {
-        title: internship.title,
-        subtitle: internship.subtitle,
+        title: internship.opportunity.title,
+        // subtitle: internship.opportunity.shortPitch,
         cohort: internship.cohort,
-        coverImage: internship.coverImage,
-        trainingType: internship.trainingType,
-        location: internship.location,
+        coverImage: internship.opportunity.coverImage,
+        trainingType: internship.opportunity.type,
+        location: internship.opportunity.location,
         company: {
           name: internship.company.name,
           logo: internship.company.logo,
@@ -1367,10 +1640,12 @@ export class StudentService {
       stats: {
         progress: {
           percent: internship.progressPercent,
+          currentMilestone: internship.currentMilestone ?? 0,
+          totalMilestones: internship.totalMilestones ?? 0,
           weeksCompleted: internship.weeksCompleted ?? 0,
           weeksTotal: internship.weeksTotal ?? 0,
           hoursCompleted,
-          hoursTotal: internship.hoursTotal ?? 0,
+          hoursTotal: internship.opportunity.hoursTotal ?? 0,
         },
         tasks: {
           total: totalTasks,
@@ -1385,10 +1660,10 @@ export class StudentService {
         },
       },
       about: {
-        description: internship.description,
-        techStack: Array.isArray(internship.techStack) ? internship.techStack : [],
-        learningObjectives: internship.learningObjectives ?? [],
-        competencies: Array.isArray(internship.competencies) ? internship.competencies : [],
+        description: internship.opportunity.description,
+        techStack: Array.isArray(internship.opportunity.techStack) ? internship.opportunity.techStack : [],
+        learningObjectives: internship.opportunity.learningObjectives ?? [],
+        competencies: Array.isArray(internship.opportunity.competencies) ? internship.opportunity.competencies : [],
       },
       overview: {
         trainingPeriod: {
@@ -1400,16 +1675,16 @@ export class StudentService {
           ),
         },
         totalDuration: {
-          hours: internship.hoursTotal,
-          hoursPerWeek: internship.hoursPerWeek,
-          workingDays: internship.workingDays,
+          hours: internship.opportunity.hoursTotal,
+          hoursPerWeek: internship.opportunity.hoursPerWeek,
+          workingDays: internship.opportunity.workDays,
         },
         trainingVenue: {
-          name: internship.venueName,
-          address: internship.venueAddress,
-          latitude: internship.latitude,
-          longitude: internship.longitude,
-          equipment: internship.venueEquipment,
+          name: internship.opportunity.venueName,
+          address: internship.opportunity.venueAddress,
+          latitude: internship.opportunity.latitude,
+          longitude: internship.opportunity.longitude,
+          equipment: internship.opportunity.venueEquipment,
         },
         academicPartners: Array.from(academicPartners.values()),
       },
@@ -1452,24 +1727,24 @@ export class StudentService {
       })),
       logistics: {
         attendanceModel: {
-          type: internship.trainingType === 'REMOTE' ? 'Remote' : 'On-Site Lab + QR Verification',
-          checkInStart: internship.checkInStart,
-          checkInEnd: internship.checkInEnd,
-          minPercent: internship.attendanceMinPercent,
+          type: internship.opportunity.type === 'REMOTE' ? 'Remote' : 'On-Site Lab + QR Verification',
+          checkInStart: internship.opportunity.checkInStart,
+          checkInEnd: internship.opportunity.checkInEnd,
+          minPercent: internship.opportunity.attendanceMinPercent,
         },
         workingSchedule: {
-          days: internship.workingDays,
-          startTime: internship.workStartTime,
-          endTime: internship.workEndTime,
-          dailyHours: internship.dailyHours,
+          days: internship.opportunity.workDays,
+          startTime: internship.opportunity.workStartTime,
+          endTime: internship.opportunity.workEndTime,
+          dailyHours: internship.opportunity.dailyHours,
         },
         venue: {
-          name: internship.venueName,
-          address: internship.venueAddress,
-          latitude: internship.latitude,
-          longitude: internship.longitude,
-          equipment: internship.venueEquipment,
-          remoteTools: internship.remoteTools,
+          name: internship.opportunity.venueName,
+          address: internship.opportunity.venueAddress,
+          latitude: internship.opportunity.latitude,
+          longitude: internship.opportunity.longitude,
+          equipment: internship.opportunity.venueEquipment,
+          remoteTools: internship.opportunity.remoteTools,
         },
       },
     };
@@ -1506,7 +1781,6 @@ export class StudentService {
     });
 
 
-    // 2. جلب التقييمات الجديدة
     const evaluations = await this.prisma.evaluation.findMany({
       where: { studentId: userId },
       orderBy: { createdAt: 'desc' },
