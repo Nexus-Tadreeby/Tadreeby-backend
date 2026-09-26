@@ -9,6 +9,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthController } from './modules/auth/auth.controller';
 import { StudentModule } from './modules/student/student.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { EmailModule } from './modules/mail/email.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { UniversityModule } from './modules/organization/universities/university.module';
@@ -36,6 +37,7 @@ import { UniversitySupervisorModule } from './modules/university/supervisor/univ
       envFilePath: '.env',
     }),
     EventEmitterModule.forRoot(),
+    ScheduleModule.forRoot(),
     DatabaseModule,
     AuthModule,
     StudentModule,
