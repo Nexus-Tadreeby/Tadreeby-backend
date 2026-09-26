@@ -53,6 +53,18 @@ enum TaskBadge {
   ACTIVE
 }
 
+enum TaskDifficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum SubmissionType {
+  CODE_REPOSITORY
+  FILE_UPLOAD
+  LIVE_URL
+}
+
 enum TrainingType {
   REMOTE
   ONSITE
@@ -726,11 +738,22 @@ model InternshipStudent {
 // }
 
 model Task {
-  id               Int        @id @default(autoincrement())
-  internshipId     Int
-  title            String
-  description      String?
-  deadline         DateTime?
+  id           Int     @id @default(autoincrement())
+  internshipId Int
+  title        String
+  description  String?
+
+  category     String?
+  difficulty   TaskDifficulty @default(INTERMEDIATE)
+  skills       String[]
+  instructions String?
+  deliverables String[]
+
+  startDate               DateTime?
+  deadline                DateTime?
+  acceptedSubmissionTypes SubmissionType[] @default([])
+  allowLateSubmission     Boolean          @default(false)
+
   status           TaskStatus @default(TODO)
   badge            TaskBadge?
   rubricUrl        String?
@@ -738,11 +761,24 @@ model Task {
   submissionCount  Int        @default(0)
   needsReviewCount Int        @default(0)
 
-  submissions TaskSubmission[]
-  internship  Internship       @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+  submissions        TaskSubmission[]
+  internship         Internship            @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+  evaluationCriteria EvaluationCriterion[] // ربط معايير التقييم
 
   @@index([internshipId])
   @@index([status])
+}
+
+
+model EvaluationCriterion {
+  id        Int     @id @default(autoincrement())
+  taskId    Int
+  name      String  
+  weight    Int     
+  
+  task      Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
 }
 
 // ! Task Submission Model
