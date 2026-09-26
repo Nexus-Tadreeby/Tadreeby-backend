@@ -1220,9 +1220,41 @@ export class StudentService {
         studentId: userId,
         internshipId,
       },
+      include: {
+        internship: {
+          select: {
+            opportunity: {
+              select: { hoursTotal: true },
+            },
+          },
+        },
+      },
     });
 
     if (!enrolled) throw new ForbiddenException('You are not enrolled in this internship');
+
+    const maxTrainingHours = enrolled.internship.opportunity.hoursTotal ?? 0;
+    if (maxTrainingHours > 0) {
+      const completedAttendance = await this.prisma.attendance.findMany({
+        where: {
+          studentId: userId,
+          internshipId,
+          checkOut: { not: null },
+        },
+        select: { duration: true },
+      });
+
+      const completedMinutes = completedAttendance.reduce((total, record) => {
+        const duration = record.duration ?? '';
+        const hours = Number(duration.match(/([\d.]+)\s*h/i)?.[1] ?? 0);
+        const minutes = Number(duration.match(/([\d.]+)\s*m/i)?.[1] ?? 0);
+        return total + hours * 60 + minutes;
+      }, 0);
+
+      if (completedMinutes >= maxTrainingHours * 60) {
+        throw new ForbiddenException('You have completed the maximum training hours for this internship');
+      }
+    }
 
     // Check if already checked in today
     const today = new Date();
