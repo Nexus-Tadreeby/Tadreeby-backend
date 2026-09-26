@@ -1606,6 +1606,7 @@ export class StudentService {
       const match = entry.duration?.match(/[\d.]+/);
       return sum + (match ? Number(match[0]) : 0);
     }, 0);
+    const hoursTotal = internship.opportunity.hoursTotal ?? 0;
     const currentTask = tasks[0];
     const academicPartners = new Map<number, { university: string; shortCode: string; studentCount: number }>();
 
@@ -1639,7 +1640,9 @@ export class StudentService {
       },
       stats: {
         progress: {
-          percent: internship.progressPercent,
+          percent: hoursTotal > 0
+            ? Math.min(100, Math.round((hoursCompleted / hoursTotal) * 100))
+            : internship.progressPercent,
           currentMilestone: internship.currentMilestone ?? 0,
           totalMilestones: internship.totalMilestones ?? 0,
           weeksCompleted: internship.weeksCompleted ?? 0,
