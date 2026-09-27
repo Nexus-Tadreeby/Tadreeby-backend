@@ -236,8 +236,8 @@ export class FilesController {
           fileUrl: 'http://localhost:6060/api/v1/files/task-attachments/uuid.zip',
           fileSize: 14892000,
           mimeType: 'application/zip',
-          message: '1 file(s) uploaded successfully',
         },
+        message: '1 file(s) uploaded successfully',
       },
     },
   })
