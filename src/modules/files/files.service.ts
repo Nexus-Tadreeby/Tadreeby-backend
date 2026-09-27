@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
 import { generateFileName, FileTypeLabel, FileTypeToLabel } from '../../common/utils/file-naming.util';
+import { randomUUID } from 'crypto';
 
 const unlinkAsync = promisify(fs.unlink);
 
@@ -163,50 +164,156 @@ export class FilesService {
 
   private validateFile(file: Express.Multer.File, type: FileType): void {
     // Type-specific size limits
-    const PROFILE_IMAGE_SIZE = 10 * 1024 * 1024;  // 5MB
-    const CV_SIZE = 5 * 1024 * 1024;             // 5MB
-    const VERIFICATION_SIZE = 5 * 1024 * 1024;   // 5MB
-    const TASK_SIZE = 10 * 1024 * 1024;          // 10MB
+    // const PROFILE_IMAGE_SIZE = 10 * 1024 * 1024;  // 5MB
+    // const CV_SIZE = 5 * 1024 * 1024;             // 5MB
+    // const VERIFICATION_SIZE = 5 * 1024 * 1024;   // 5MB
+    // const TASK_SIZE = 50 * 1024 * 1024;          // 50MB
 
-    const maxSizeByType: Record<FileType, number> = {
-      [FileType.PROFILE]: PROFILE_IMAGE_SIZE,
-      [FileType.CV]: CV_SIZE,
-      [FileType.VERIFICATION]: VERIFICATION_SIZE,
-      [FileType.TASK]: TASK_SIZE,
-    };
+    // const maxSizeByType: Record<FileType, number> = {
+    //   [FileType.PROFILE]: PROFILE_IMAGE_SIZE,
+    //   [FileType.CV]: CV_SIZE,
+    //   [FileType.VERIFICATION]: VERIFICATION_SIZE,
+    //   [FileType.TASK]: TASK_SIZE,
+    // };
 
-    const maxSize = maxSizeByType[type] || PROFILE_IMAGE_SIZE;
+    // const maxSize = maxSizeByType[type] || PROFILE_IMAGE_SIZE;
 
-    if (file.size > maxSize) {
-      const sizeInMB = maxSize / 1024 / 1024;
-      throw new BadRequestException(
-        `File size exceeds ${sizeInMB}MB limit for ${type} files`
-      );
-    }
+    // if (file.size > maxSize) {
+    //   const sizeInMB = maxSize / 1024 / 1024;
+    //   throw new BadRequestException(
+    //     `File size exceeds ${sizeInMB}MB limit for ${type} files`
+    //   );
+    // }
 
     // Allowed file types
-    const allowedTypes = [
-      // Images
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'image/svg+xml',
-      // Documents
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'text/plain',
-    ];
+    // const allowedTypes = [
+    //   // Images
+    //   'image/jpeg',
+    //   'image/png',
+    //   'image/gif',
+    //   'image/webp',
+    //   'image/svg+xml',
+    //   // Documents
+    //   'application/pdf',
+    //   'application/msword',
+    //   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    //   'application/vnd.ms-excel',
+    //   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    //   'text/plain',
+    // ];
+    
+        // if (!allowedTypes.includes(file.mimetype)) {
+        //   throw new BadRequestException(
+        //     'Invalid file type. Allowed: JPEG, PNG, GIF, WEBP, SVG, PDF, DOC, DOCX, XLS, XLSX, TXT'
+        //   );
+        // }
 
-    if (!allowedTypes.includes(file.mimetype)) {
-      throw new BadRequestException(
-        'Invalid file type. Allowed: JPEG, PNG, GIF, WEBP, SVG, PDF, DOC, DOCX, XLS, XLSX, TXT'
-      );
-    }
+
+    const sizeLimits: Record<FileType, number> = {
+      [FileType.PROFILE]: 5 * 1024 * 1024,       // 5MB
+      [FileType.CV]: 5 * 1024 * 1024,            // 5MB
+      [FileType.VERIFICATION]: 5 * 1024 * 1024,  // 5MB
+      [FileType.TASK]: 20 * 1024 * 1024,         // 20MB
+    };
+
+
+
+    const allowedTypes: Record<FileType, string[]> = {
+      [FileType.PROFILE]: [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'image/svg+xml',
+      ],
+      [FileType.CV]: [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ],
+      [FileType.VERIFICATION]: [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+      ],
+      [FileType.TASK]: [
+        'application/pdf',
+        'application/json',
+        'application/sql',
+        'text/plain',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/zip',
+        'application/x-zip-compressed',
+        'application/x-zip',
+        'multipart/x-zip',
+        'image/jpeg',
+        'image/png',
+        'image/svg+xml',
+        'image/webp',
+      ],
+    };
+
+   
+  const maxSize = sizeLimits[type];
+  if (!maxSize) {
+    throw new BadRequestException(`Invalid file type: ${type}`);
   }
+  if (file.size > maxSize) {
+    const sizeInMB = maxSize / 1024 / 1024;
+    throw new BadRequestException(
+      `File size exceeds ${sizeInMB}MB limit for ${type} files`,
+    );
+  }
+
+    const allowed = allowedTypes[type];
+  if (!allowed.includes(file.mimetype)) {
+    throw new BadRequestException(
+      `Invalid file type for ${type} files. Allowed: ${allowed.join(', ')}`,
+    );
+  }
+
+  
+    
+  }
+
+
+  async uploadTaskAttachment(
+    file: Express.Multer.File,
+  ): Promise<{
+    fileName: string;
+    fileUrl: string;
+    fileSize: number;
+    mimeType: string;
+  }> {
+    this.validateFile(file, FileType.TASK);
+
+    const folderPath = path.join(
+      process.env.UPLOAD_PATH || './uploads',
+      'tasks',
+      'attachments',
+    );
+    this.ensureFolderExists(folderPath);
+
+    const ext = path.extname(file.originalname);
+    const storedFileName = `${randomUUID()}${ext}`;
+    const filePath = path.join(folderPath, storedFileName);
+
+   
+    await fs.promises.writeFile(filePath, file.buffer);
+
+  
+    const baseUrl = process.env.BASE_URL || 'http://localhost:6060';
+    const fileUrl = `${baseUrl}/uploads/tasks/attachments/${storedFileName}`;
+
+    return {
+      fileName: file.originalname, 
+      fileUrl,                     
+      fileSize: file.size,
+      mimeType: file.mimetype,
+    };
+  }
+
 
   private ensureFolderExists(folderPath: string): void {
     if (!fs.existsSync(folderPath)) {

@@ -1,20 +1,35 @@
 import {
     IsArray, IsBoolean, IsEnum, IsInt, IsISO8601,
     IsNotEmpty, IsOptional, IsString, ValidateNested, ArrayNotEmpty,
+    ArrayMaxSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { SubmissionType, TaskDifficulty } from '@prisma/client';
 
-export enum TaskDifficulty {
-    BEGINNER = 'BEGINNER',
-    INTERMEDIATE = 'INTERMEDIATE',
-    ADVANCED = 'ADVANCED',
+
+
+export class TaskAttachmentDto {
+    @IsString()
+    @IsNotEmpty()
+    fileName!: string;
+
+    @IsString()
+    @IsNotEmpty()
+    fileUrl!: string;
+
+    @IsInt()
+    fileSize!: number;
+
+    @IsString()
+    @IsNotEmpty()
+    mimeType!: string;
+
+    @IsOptional()
+    @IsString()
+    description?: string;
 }
 
-export enum SubmissionType {
-    CODE_REPOSITORY = 'CODE_REPOSITORY',
-    FILE_UPLOAD = 'FILE_UPLOAD',
-    LIVE_URL = 'LIVE_URL',
-}
+
 
 export class EvaluationCriterionDto {
     @IsString()
@@ -81,4 +96,11 @@ export class CreateTaskDto {
     @ValidateNested({ each: true })
     @Type(() => EvaluationCriterionDto)
     evaluationCriteria?: EvaluationCriterionDto[];
+
+    @IsOptional()
+    @IsArray()
+    @ArrayMaxSize(5, { message: 'Maximum 5 attachments allowed' })
+    @ValidateNested({ each: true })
+    @Type(() => TaskAttachmentDto)
+    attachments?: TaskAttachmentDto[];
 }

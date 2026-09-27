@@ -47,6 +47,12 @@ enum TaskStatus {
   DONE
 }
 
+enum TaskPublicationStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 enum TaskBadge {
   IN_REVIEW
   GRADED
@@ -754,6 +760,11 @@ model Task {
   acceptedSubmissionTypes SubmissionType[] @default([])
   allowLateSubmission     Boolean          @default(false)
 
+  publicationStatus TaskPublicationStatus @default(DRAFT)
+  publishedAt       DateTime?
+  createdById       Int?
+  updatedById       Int?
+
   status           TaskStatus @default(TODO)
   badge            TaskBadge?
   rubricUrl        String?
@@ -763,20 +774,38 @@ model Task {
 
   submissions        TaskSubmission[]
   internship         Internship            @relation(fields: [internshipId], references: [id], onDelete: Cascade)
-  evaluationCriteria EvaluationCriterion[] // ربط معايير التقييم
+  evaluationCriteria EvaluationCriterion[]
+  taskAttachments    TaskAttachment[]
+  
 
   @@index([internshipId])
+  @@index([publicationStatus])
+  @@index([internshipId, publicationStatus])
   @@index([status])
 }
 
+model TaskAttachment {
+  id          Int      @id @default(autoincrement())
+  taskId      Int
+  fileName    String 
+  fileUrl     String 
+  fileSize    Int
+  mimeType    String 
+  description String? 
+  createdAt   DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
 
 model EvaluationCriterion {
-  id        Int     @id @default(autoincrement())
-  taskId    Int
-  name      String  
-  weight    Int     
-  
-  task      Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  id     Int    @id @default(autoincrement())
+  taskId Int
+  name   String
+  weight Int
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId])
 }

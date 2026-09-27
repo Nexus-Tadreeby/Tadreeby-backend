@@ -9,6 +9,9 @@ const SMALL_FILE_LIMIT = 5 * 1024 * 1024;
 // 10MB limit for task files
 const LARGE_FILE_LIMIT = 10 * 1024 * 1024;
 
+// 20MB limit for task attachments (trainer reference materials)
+const XL_FILE_LIMIT = 20 * 1024 * 1024;
+
 export const multerConfig = {
     storage: memoryStorage(),
     limits: {
@@ -52,6 +55,7 @@ export const cvMulterConfig = {
     },
 };
 
+
 // Multer config for verification document uploads (5MB limit)
 export const verificationDocMulterConfig = {
     limits: {
@@ -65,6 +69,28 @@ export const taskFileMulterConfig = {
         fileSize: LARGE_FILE_LIMIT, // 10MB
     },
 };
+
+
+export const taskAttachmentMulterConfig = {
+    limits: {
+        fileSize: XL_FILE_LIMIT, // 20MB
+    },
+};
+
+// export const taskAttachmentMulterConfig = {
+//     storage: diskStorage({
+//         destination: join(process.cwd(), 'uploads', 'task-attachments'),
+//         filename: (_req, file, cb) => {
+//             const ext = extname(file.originalname);
+//             cb(null, `${randomUUID()}${ext}`);
+//         },
+//     }),
+//     limits: {
+//         fileSize: XL_FILE_LIMIT,
+//     },
+// };
+
+
 
 // Multer config for logo uploads (5MB limit)
 export const logoMulterConfig = {

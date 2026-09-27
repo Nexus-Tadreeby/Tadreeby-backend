@@ -2,8 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { DatabaseService } from 'src/database/database.service';
 import * as fs from 'fs';
 import * as path from 'path';
-import { TaskDifficulty } from './dto/create-task.dto';
-import { SubmissionType, TaskStatus } from '@prisma/client';
+import { SubmissionType, TaskDifficulty, TaskStatus } from '@prisma/client';
 
 @Injectable()
 export class TasksService {
@@ -102,10 +101,23 @@ export class TasksService {
                         })),
                     }
                     : undefined,
+                taskAttachments: dto.attachments?.length
+                    ? {
+                        create: dto.attachments.map((a) => ({
+                            fileName: a.fileName,
+                            fileUrl: a.fileUrl,
+                            fileSize: a.fileSize,
+                            mimeType: a.mimeType,
+                            description: a.description ?? null,
+                        })),
+                    }
+                    : undefined,
             },
             include: {
                 evaluationCriteria: true,
+                taskAttachments: true,
             },
+
         });
     }
 
@@ -150,7 +162,7 @@ export class TasksService {
         });
     }
 
-  
+
     async remove(id: number) {
         await this.prisma.task.delete({ where: { id } }).catch(() => undefined);
         return { deleted: true, id };

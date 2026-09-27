@@ -25,13 +25,15 @@ import { UserRole } from '@prisma/client';
 
 import { FilesService, FileType } from './files.service';
 import { ApiSuccessResponse, MessageResponse } from 'src/common/types/unifiedType.types';
-import { profileImageMulterConfig, cvMulterConfig, verificationDocMulterConfig, taskFileMulterConfig } from 'src/common/config/multer.config';
-
+import { profileImageMulterConfig, cvMulterConfig, verificationDocMulterConfig, taskFileMulterConfig ,taskAttachmentMulterConfig } from 'src/common/config/multer.config';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { UploadedFiles } from '@nestjs/common';
 
 const profileImageOptions = { ...profileImageMulterConfig };
 const cvOptions = { ...cvMulterConfig };
 const verificationDocOptions = { ...verificationDocMulterConfig };
 const taskFileOptions = { ...taskFileMulterConfig };
+const taskAttachmentOptions = { ...taskAttachmentMulterConfig };
 
 @ApiTags('Files')
 @ApiBearerAuth()
@@ -207,7 +209,92 @@ export class FilesController {
 
 
 
+  @Post('task-attachment')
+  @Roles([UserRole.COMPANY_TRAINER])
+  @UseInterceptors(FilesInterceptor('files', 5 , taskAttachmentOptions))
+  @ApiOperation({ summary: 'Upload up to 5 task attachments  (max 20MB)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'ZIP, PDF, JSON, SQL, DOC, DOCX, images - Max 20MB',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          fileName: 'rails-devise-jwt-starter-v1.zip',
+          fileUrl: 'http://localhost:6060/api/v1/files/task-attachments/uuid.zip',
+          fileSize: 14892000,
+          mimeType: 'application/zip',
+          message: '1 file(s) uploaded successfully',
+        },
+      },
+    },
+  })
+  async uploadTaskAttachment(
+    @UploadedFiles() files: Express.Multer.File[],
+  ): Promise<
+    ApiSuccessResponse<
+       Array<{
+        fileName: string;
+        fileUrl: string;
+        fileSize: number;
+        mimeType: string;
+    }>
+    >
+  > {
 
+    if (!files || files.length === 0) {
+      return {
+         success: true, 
+         data: [],
+        message: 'No files uploaded'
+       };
+    }
+
+    const results = await Promise.all(
+      files.map((file) => this.filesService.uploadTaskAttachment(file)),
+    );
+    return {
+      success: true,
+      data: results,
+      message: `${results.length} file(s) uploaded successfully`,
+      
+    };
+  }
+
+
+
+  @Get('task-attachments/:filename')
+  @ApiOperation({ summary: 'Get task attachment' })
+  async getTaskAttachment(
+    @Param('filename') filename: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const filePath = path.join(
+      process.env.UPLOAD_PATH || './uploads',
+      'task-attachments',
+      filename,
+    );
+
+    const fileStream = createReadStream(filePath);
+    res.set({
+      'Content-Type': this.getContentType(filename),
+      'Content-Disposition': `inline; filename="${filename}"`,
+    });
+
+    return new StreamableFile(fileStream);
+  }
 
   @Delete('profile')
   @Roles([UserRole.STUDENT, UserRole.UNIVERSITY_ADMIN, UserRole.COMPANY_ADMIN, UserRole.UNIVERSITY_SUPERVISOR, UserRole.COMPANY_TRAINER])

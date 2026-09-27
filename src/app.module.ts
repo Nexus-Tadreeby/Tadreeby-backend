@@ -29,6 +29,7 @@ import { AiModule } from './modules/ai/ai.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { UniversityAdminModule } from './modules/university/admin/university-admin.module';
 import { UniversitySupervisorModule } from './modules/university/supervisor/university-supervisor.module';
+import { FilesModule } from './modules/files/files.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { UniversitySupervisorModule } from './modules/university/supervisor/univ
     UniversityAdminModule,
     UniversitySupervisorModule,
     CompanyTrainerModule,
+    FilesModule,
   ],
 
   controllers: [AppController],

@@ -1,4 +1,5 @@
-import { z } from 'zod';
+import z,  {ZodType} from 'zod';
+import { CreateTaskDto } from '../dto/create-task.dto';
 
 export const TaskDifficultyEnum = z.enum([
     'BEGINNER',
@@ -19,6 +20,16 @@ export const EvaluationCriterionSchema = z.object({
     weight: z.number().int().min(0).max(100),
 });
 
+export const TaskAttachmentSchema = z.object({
+    fileName: z.string().min(1),
+    fileUrl: z.string(),
+    fileSize: z.number().int().positive(),
+    mimeType: z.string().min(1),
+    description: z.string().optional(),
+});
+
+
+
 export const CreateTaskSchema = z
     .object({
         internshipId: z.number().int().positive(),
@@ -34,7 +45,7 @@ export const CreateTaskSchema = z
         deadline: z.string().datetime().optional(),
         acceptedSubmissionTypes: z.array(SubmissionTypeEnum).optional(),
         allowLateSubmission: z.boolean().optional(),
-
+        attachments: z.array(TaskAttachmentSchema).max(5 , 'Maximum 5 attachments allowed').optional(), 
         status: TaskStatusEnum.optional(),
 
         evaluationCriteria: z.array(EvaluationCriterionSchema).optional(),
@@ -63,7 +74,4 @@ export const CreateTaskSchema = z
                 });
             }
         }
-    });
-
-// استخراج النوع تلقائياً من الـ schema
-export type CreateTaskDto = z.infer<typeof CreateTaskSchema>;
+    }) satisfies ZodType<CreateTaskDto>// Ensure the schema satisfies the CreateTaskDto type
