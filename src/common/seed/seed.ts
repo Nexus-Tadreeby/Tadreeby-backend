@@ -598,6 +598,7 @@ import {
     InternshipStatus,
     PrismaClient,
     StatusType,
+    Prisma,
     StudentApprovalStatus,
     TrainingType,
     UniversityAction,
@@ -1099,148 +1100,1074 @@ async function main() {
     console.log("  ✅ Assigned 2 approved students to their supervisors");
 
     // ---------- TRAINING OPPORTUNITIES (5) ----------
+    // console.log("📋 Creating 5 Training Opportunities...");
+    // const opportunityTitles = [
+    //     "Backend Engineer Intern",
+    //     "Frontend Developer Intern",
+    //     "Full Stack Developer Intern",
+    //     "Data Science Intern",
+    //     "DevOps Engineer Intern",
+    // ];
+    // const skillSets = [
+    //     "Ruby,Rails,PostgreSQL,REST APIs,JWT,RSpec",
+    //     "React,TypeScript,Tailwind",
+    //     "React,Node.js,PostgreSQL",
+    //     "Python,Pandas,Scikit-learn",
+    //     "Docker,Kubernetes,AWS",
+    // ];
+    // const types: TrainingType[] = ["HYBRID", "HYBRID", "REMOTE", "HYBRID", "ONSITE"];
+    // const oppLocations = [
+    //     "Tadreeby Tech HQ, Gaza",
+    //     "Tadreeby Tech HQ, Gaza",
+    //     "Remote / Online",
+    //     "Future Labs HQ, Gaza",
+    //     "Future Labs HQ, Gaza",
+    // ];
+    // const oppMeetingLinks = [
+    //     "https://meet.tadreeby.com/backend-intern",
+    //     "https://meet.tadreeby.com/frontend-intern",
+    //     "https://meet.tadreeby.com/fullstack-intern",
+    //     "https://meet.tadreeby.com/data-intern",
+    //     "https://meet.tadreeby.com/devops-intern",
+    // ];
+
+    // const createdOpportunities: any[] = [];
+    // for (let i = 0; i < 5; i++) {
+    //     const company = createdCompanies[i % createdCompanies.length];
+    //     const isBackend = i === 0;
+
+    //     const opp = await prisma.trainingOpportunity.create({
+    //         data: {
+    //             companyId: company.id,
+    //             trainerId: isBackend ? trainerUser.id : null,
+    //             title: opportunityTitles[i],
+    //             description: `Internship program for ${opportunityTitles[i]} at ${company.name}.`,
+    //             requiredSkills: skillSets[i],
+    //             duration: `${(i % 3) + 3} months`,
+    //             totalSeats: 10 + i * 2,
+    //             isActive: true,
+    //             status: isBackend ? OpportunityStatus.CLOSED : OpportunityStatus.OPEN,
+    //             type: types[i],
+    //             location: oppLocations[i],
+    //             meetingLink: oppMeetingLinks[i],
+    //             stipend: 0,
+    //             daysPerWeek: 3,
+    //             trainingField: opportunityTitles[i].replace(" Intern", ""),
+    //             workDays: "Sunday - Tuesday - Thursday",
+    //             workHours: "09:00 - 15:00",
+    //             cohort: "Cohort Fall 2026",
+    //             coverImage: "https://media.istockphoto.com/vectors/accounting-financial-analysis-tax-payment-analytics-data-capture-vector-id1399038180?k=20&m=1399038180&s=612x612&w=0&h=fhPTNk7AtOPPehbkiEcbpnEfmnDSIytZnJmJ66krQcg=",
+    //             hoursTotal: 200,
+    //             hoursPerWeek: 20,
+    //             dailyHours: 6,
+    //             workStartTime: "09:00",
+    //             workEndTime: "15:00",
+    //             attendanceMinPercent: 90,
+    //             checkInStart: "08:45",
+    //             checkInEnd: "09:15",
+    //             venueName: "Tadreeby Tech HQ",
+    //             venueAddress: "Omar Al-Mukhtar Street, Gaza",
+    //             venueEquipment: "Dual-monitor workstations, high-speed fiber backbone, and gigabit LAN.",
+    //             remoteTools: "Discord, GitHub",
+    //             latitude: 31.501,
+    //             longitude: 34.466,
+    //             certificateInfo: {
+    //                 name: "Verified Certificate of Mastery",
+    //                 signedBy: company.name,
+    //                 verifiable: true,
+    //                 verifiableOn: ["LinkedIn", "Tadreeby Registry"],
+    //             },
+    //             ...(isBackend && {
+    //                 applicationDeadline: new Date("2026-07-10T23:59:00Z"),
+    //                 publishedAt: new Date("2026-06-01T10:00:00Z"),
+    //                 closedAt: new Date("2026-07-11T00:00:00Z"),
+    //                 startDate: new Date("2026-07-14T09:00:00Z"),
+    //                 endDate: new Date("2026-09-30T15:00:00Z"),
+    //                 hoursTotal: 360,
+    //                 hoursPerWeek: 30,
+    //                 daysPerWeek: 5,
+    //                 cohort: "Cohort 2026-A",
+    //                 duration: "3 Months",
+    //                 totalSeats: 50,
+    //                 location: "Gaza Tech Hub",
+    //                 trainingField: "Backend Engineering",
+    //                 workDays: "Sunday - Thursday",
+    //                 techStack: [
+    //                     "Ruby 3.2",
+    //                     "Rails 7.1",
+    //                     "PostgreSQL 16",
+    //                     "REST APIs & JWT",
+    //                     "RSpec & TDD",
+    //                     "Docker Compose",
+    //                     "Redis & Sidekiq",
+    //                     "Git & GitHub Actions",
+    //                 ],
+    //                 learningObjectives: [
+    //                     { title: "Master MVC Architecture & ActiveRecord Schemas", description: "Design complex normalized relational schemas, custom database migrations, associations, eager-loading optimizations, and query indexes." },
+    //                     { title: "Secure RESTful Endpoints & Tokenized Authentication", description: "Implement Devise-JWT authentication, granular role permissions with Pundit, API rate limiting, and defensive request validation." },
+    //                     { title: "Test-Driven Development (TDD) with RSpec & CI Pipelines", description: "Write deterministic unit, request, and integration test suites using FactoryBot and VCR, with automated PR regression checks via GitHub Actions." },
+    //                     { title: "Asynchronous Queues & Background Workers", description: "Implement high-throughput async processing via Sidekiq and Redis for transactional emails, report exports, and webhook dispatches." },
+    //                 ],
+    //                 competencies: [
+    //                     "RESTful JSON API Standards & Versioning",
+    //                     "Relational Schema Normalization & Indexing",
+    //                     "Background Jobs & Redis Cache Stores",
+    //                     "CI/CD Automated GitHub Action Deployments",
+    //                 ],
+    //                 curriculum: [
+    //                     { phase: "PHASE 01", weeks: "WEEKS 1 – 3", title: "Ruby Fundamentals & Object-Oriented Programming", description: "Deep dive into Ruby syntax, blocks, procs, lambdas, modules, mixins, and the object model.", tags: ["Ruby 3.2", "IRB", "Bundler"] },
+    //                     { phase: "PHASE 02", weeks: "WEEKS 4 – 7", title: "Rails 7.1 MVC Architecture & ActiveRecord", description: "Master Rails conventions, routing, controllers, views, and the full MVC flow.", tags: ["Rails 7.1", "ActiveRecord", "PostgreSQL 16"] },
+    //                     { phase: "PHASE 03", weeks: "WEEKS 8 – 12", title: "RESTful APIs, JWT Authentication & TDD", description: "Design scalable REST APIs with JWT authentication, Pundit authorization, and rate limiting.", tags: ["REST APIs", "JWT", "RSpec & TDD"] },
+    //                     { phase: "PHASE 04", weeks: "WEEKS 13 – 16", title: "Background Jobs, Docker & Production Deployment", description: "Implement Sidekiq background workers with Redis, containerize the app with Docker Compose, and deploy to production with GitHub Actions CI/CD pipelines.", tags: ["Sidekiq", "Docker Compose", "GitHub Actions"] },
+    //                 ],
+    //                 responsibilities: [
+    //                     { order: 1, title: "Build RESTful API Endpoints", description: "Design and implement production-grade REST APIs with proper versioning, error handling, and request validation." },
+    //                     { order: 2, title: "Write Comprehensive RSpec Test Suites", description: "Maintain deterministic unit, request, and integration tests with high coverage using FactoryBot and VCR." },
+    //                     { order: 3, title: "Daily Agile Standups & PR Reviews", description: "Participate in 15-minute morning standups, review peer code, and track ticket velocity on GitHub Projects." },
+    //                     { order: 4, title: "Database Schema Design & Optimization", description: "Design normalized PostgreSQL schemas, write migrations, and optimize queries with proper indexes and eager loading." },
+    //                 ],
+    //                 qualifications: {
+    //                     academic: [
+    //                         "Enrolled 3rd or 4th-year student in Computer Science, Software Engineering, or Computer Engineering.",
+    //                         "Minimum cumulative GPA of 75% or equivalent academic performance.",
+    //                     ],
+    //                     technical: [
+    //                         "Solid understanding of Object-Oriented Programming (any language).",
+    //                         "Basic familiarity with relational databases and SQL.",
+    //                         "Comfortable with Git version control (branching, pull requests, merge conflicts).",
+    //                     ],
+    //                 },
+    //             }),
+    //         },
+    //     });
+    //     createdOpportunities.push(opp);
+    //     console.log(`  ✅ Created: ${opportunityTitles[i]}`);
+    // }
+
+    // ---------- TRAINING OPPORTUNITIES (5) ----------
     console.log("📋 Creating 5 Training Opportunities...");
-    const opportunityTitles = [
-        "Backend Engineer Intern",
-        "Frontend Developer Intern",
-        "Full Stack Developer Intern",
-        "Data Science Intern",
-        "DevOps Engineer Intern",
-    ];
-    const skillSets = [
-        "Ruby,Rails,PostgreSQL,REST APIs,JWT,RSpec",
-        "React,TypeScript,Tailwind",
-        "React,Node.js,PostgreSQL",
-        "Python,Pandas,Scikit-learn",
-        "Docker,Kubernetes,AWS",
-    ];
-    const types: TrainingType[] = ["HYBRID", "HYBRID", "REMOTE", "HYBRID", "ONSITE"];
-    const oppLocations = [
-        "Tadreeby Tech HQ, Gaza",
-        "Tadreeby Tech HQ, Gaza",
-        "Remote / Online",
-        "Future Labs HQ, Gaza",
-        "Future Labs HQ, Gaza",
-    ];
-    const oppMeetingLinks = [
-        "https://meet.tadreeby.com/backend-intern",
-        "https://meet.tadreeby.com/frontend-intern",
-        "https://meet.tadreeby.com/fullstack-intern",
-        "https://meet.tadreeby.com/data-intern",
-        "https://meet.tadreeby.com/devops-intern",
-    ];
 
-    const createdOpportunities: any[] = [];
-    for (let i = 0; i < 5; i++) {
-        const company = createdCompanies[i % createdCompanies.length];
-        const isBackend = i === 0;
+    const coverImage =
+        "https://media.istockphoto.com/vectors/accounting-financial-analysis-tax-payment-analytics-data-capture-vector-id1399038180?k=20&m=1399038180&s=612x612&w=0&h=fhPTNk7AtOPPehbkiEcbpnEfmnDSIytZnJmJ66krQcg=";
 
-        const opp = await prisma.trainingOpportunity.create({
+    const fullOpportunities: Prisma.TrainingOpportunityCreateArgs[] = [
+        // 1) Backend Engineer Intern - Tadreeby Tech
+        {
             data: {
-                companyId: company.id,
-                trainerId: isBackend ? trainerUser.id : null,
-                title: opportunityTitles[i],
-                description: `Internship program for ${opportunityTitles[i]} at ${company.name}.`,
-                requiredSkills: skillSets[i],
-                duration: `${(i % 3) + 3} months`,
-                totalSeats: 10 + i * 2,
+                companyId: createdCompanies[0].id,
+                trainerId: trainerUser.id,
+
+                title: "Backend Engineer Intern",
+                description:
+                    "An intensive training program on backend engineering and building REST APIs using Ruby on Rails 7.1, PostgreSQL, JWT, RSpec, Redis and Sidekiq, with deployment using Docker and GitHub Actions.",
+                requiredSkills: "Ruby,Rails,PostgreSQL,REST APIs,JWT,RSpec",
+                duration: "3 Months",
+                totalSeats: 50,
+                location: "Gaza Tech Hub",
+                meetingLink: "https://meet.tadreeby.com/backend-intern",
+
                 isActive: true,
-                status: isBackend ? OpportunityStatus.CLOSED : OpportunityStatus.OPEN,
-                type: types[i],
-                location: oppLocations[i],
-                meetingLink: oppMeetingLinks[i],
+                status: OpportunityStatus.CLOSED,
+                type: TrainingType.HYBRID,
+
+                applicationDeadline: new Date("2026-07-10T23:59:00Z"),
                 stipend: 0,
-                daysPerWeek: 3,
-                trainingField: opportunityTitles[i].replace(" Intern", ""),
-                workDays: "Sunday - Tuesday - Thursday",
+                daysPerWeek: 5,
+                trainingField: "Backend Engineering",
+                workDays: "Sunday - Thursday",
                 workHours: "09:00 - 15:00",
-                cohort: "Cohort Fall 2026",
-                coverImage: "https://media.istockphoto.com/vectors/accounting-financial-analysis-tax-payment-analytics-data-capture-vector-id1399038180?k=20&m=1399038180&s=612x612&w=0&h=fhPTNk7AtOPPehbkiEcbpnEfmnDSIytZnJmJ66krQcg=",
-                hoursTotal: 200,
-                hoursPerWeek: 20,
+                cohort: "Cohort 2026-A",
+                coverImage,
+
+                publishedAt: new Date("2026-06-01T10:00:00Z"),
+                closedAt: new Date("2026-07-11T00:00:00Z"),
+
+                hoursTotal: 360,
+                hoursPerWeek: 30,
                 dailyHours: 6,
+                startDate: new Date("2026-07-14T09:00:00Z"),
+                endDate: new Date("2026-09-30T15:00:00Z"),
                 workStartTime: "09:00",
                 workEndTime: "15:00",
+
                 attendanceMinPercent: 90,
                 checkInStart: "08:45",
                 checkInEnd: "09:15",
+
                 venueName: "Tadreeby Tech HQ",
                 venueAddress: "Omar Al-Mukhtar Street, Gaza",
-                venueEquipment: "Dual-monitor workstations, high-speed fiber backbone, and gigabit LAN.",
+                venueEquipment:
+                    "Dual-monitor workstations, high-speed fiber backbone, and gigabit LAN.",
                 remoteTools: "Discord, GitHub",
                 latitude: 31.501,
                 longitude: 34.466,
+
+                techStack: [
+                    "Ruby 3.2",
+                    "Rails 7.1",
+                    "PostgreSQL 16",
+                    "REST APIs & JWT",
+                    "RSpec & TDD",
+                    "Docker Compose",
+                    "Redis & Sidekiq",
+                    "Git & GitHub Actions",
+                ],
+
+                learningObjectives: [
+                    {
+                        title: "Master MVC Architecture & ActiveRecord Schemas",
+                        description:
+                            "Design complex normalized relational schemas, custom database migrations, associations, eager-loading optimizations, and query indexes.",
+                    },
+                    {
+                        title: "Secure RESTful Endpoints & Tokenized Authentication",
+                        description:
+                            "Implement Devise-JWT authentication, granular role permissions with Pundit, API rate limiting, and defensive request validation.",
+                    },
+                    {
+                        title: "Test-Driven Development with RSpec & CI Pipelines",
+                        description:
+                            "Write deterministic unit, request, and integration test suites using FactoryBot and VCR, with automated PR regression checks via GitHub Actions.",
+                    },
+                    {
+                        title: "Asynchronous Queues & Background Workers",
+                        description:
+                            "Implement high-throughput async processing via Sidekiq and Redis for transactional emails, report exports, and webhook dispatches.",
+                    },
+                ],
+
+                competencies: [
+                    "RESTful JSON API Standards & Versioning",
+                    "Relational Schema Normalization & Indexing",
+                    "Background Jobs & Redis Cache Stores",
+                    "CI/CD Automated GitHub Action Deployments",
+                ],
+
+                curriculum: [
+                    {
+                        phase: "PHASE 01",
+                        weeks: "WEEKS 1 – 3",
+                        title: "Ruby Fundamentals & Object-Oriented Programming",
+                        description:
+                            "Deep dive into Ruby syntax, blocks, procs, lambdas, modules, mixins, and the object model.",
+                        tags: ["Ruby 3.2", "IRB", "Bundler"],
+                    },
+                    {
+                        phase: "PHASE 02",
+                        weeks: "WEEKS 4 – 7",
+                        title: "Rails 7.1 MVC Architecture & ActiveRecord",
+                        description:
+                            "Master Rails conventions, routing, controllers, views, and the full MVC flow.",
+                        tags: ["Rails 7.1", "ActiveRecord", "PostgreSQL 16"],
+                    },
+                    {
+                        phase: "PHASE 03",
+                        weeks: "WEEKS 8 – 12",
+                        title: "RESTful APIs, JWT Authentication & TDD",
+                        description:
+                            "Design scalable REST APIs with JWT authentication, Pundit authorization, and rate limiting.",
+                        tags: ["REST APIs", "JWT", "RSpec & TDD"],
+                    },
+                    {
+                        phase: "PHASE 04",
+                        weeks: "WEEKS 13 – 16",
+                        title: "Background Jobs, Docker & Production Deployment",
+                        description:
+                            "Implement Sidekiq background workers with Redis, containerize the app with Docker Compose, and deploy to production with GitHub Actions CI/CD pipelines.",
+                        tags: ["Sidekiq", "Docker Compose", "GitHub Actions"],
+                    },
+                ],
+
+                responsibilities: [
+                    {
+                        order: 1,
+                        title: "Build RESTful API Endpoints",
+                        description:
+                            "Design and implement production-grade REST APIs with proper versioning, error handling, and request validation.",
+                    },
+                    {
+                        order: 2,
+                        title: "Write Comprehensive RSpec Test Suites",
+                        description:
+                            "Maintain deterministic unit, request, and integration tests with high coverage using FactoryBot and VCR.",
+                    },
+                    {
+                        order: 3,
+                        title: "Daily Agile Standups & PR Reviews",
+                        description:
+                            "Participate in 15-minute morning standups, review peer code, and track ticket velocity on GitHub Projects.",
+                    },
+                    {
+                        order: 4,
+                        title: "Database Schema Design & Optimization",
+                        description:
+                            "Design normalized PostgreSQL schemas, write migrations, and optimize queries with proper indexes and eager loading.",
+                    },
+                ],
+
+                qualifications: {
+                    academic: [
+                        "Enrolled 3rd or 4th-year student in Computer Science, Software Engineering, or Computer Engineering.",
+                        "Minimum cumulative GPA of 75% or equivalent academic performance.",
+                    ],
+                    technical: [
+                        "Solid understanding of Object-Oriented Programming (any language).",
+                        "Basic familiarity with relational databases and SQL.",
+                        "Comfortable with Git version control (branching, pull requests, merge conflicts).",
+                    ],
+                },
+
+                benefits: [
+                    "Verified certificate upon completion",
+                    "Potential employment opportunity with the company",
+                    "Weekly code reviews from senior engineers",
+                    "Professional work environment",
+                    "Expand your professional network",
+                ],
+
                 certificateInfo: {
                     name: "Verified Certificate of Mastery",
-                    signedBy: company.name,
+                    signedBy: "Tadreeby Tech",
                     verifiable: true,
                     verifiableOn: ["LinkedIn", "Tadreeby Registry"],
                 },
-                ...(isBackend && {
-                    applicationDeadline: new Date("2026-07-10T23:59:00Z"),
-                    publishedAt: new Date("2026-06-01T10:00:00Z"),
-                    closedAt: new Date("2026-07-11T00:00:00Z"),
-                    startDate: new Date("2026-07-14T09:00:00Z"),
-                    endDate: new Date("2026-09-30T15:00:00Z"),
-                    hoursTotal: 360,
-                    hoursPerWeek: 30,
-                    daysPerWeek: 5,
-                    cohort: "Cohort 2026-A",
-                    duration: "3 Months",
-                    totalSeats: 50,
-                    location: "Gaza Tech Hub",
-                    trainingField: "Backend Engineering",
-                    workDays: "Sunday - Thursday",
-                    techStack: [
-                        "Ruby 3.2",
-                        "Rails 7.1",
-                        "PostgreSQL 16",
-                        "REST APIs & JWT",
-                        "RSpec & TDD",
-                        "Docker Compose",
-                        "Redis & Sidekiq",
-                        "Git & GitHub Actions",
-                    ],
-                    learningObjectives: [
-                        { title: "Master MVC Architecture & ActiveRecord Schemas", description: "Design complex normalized relational schemas, custom database migrations, associations, eager-loading optimizations, and query indexes." },
-                        { title: "Secure RESTful Endpoints & Tokenized Authentication", description: "Implement Devise-JWT authentication, granular role permissions with Pundit, API rate limiting, and defensive request validation." },
-                        { title: "Test-Driven Development (TDD) with RSpec & CI Pipelines", description: "Write deterministic unit, request, and integration test suites using FactoryBot and VCR, with automated PR regression checks via GitHub Actions." },
-                        { title: "Asynchronous Queues & Background Workers", description: "Implement high-throughput async processing via Sidekiq and Redis for transactional emails, report exports, and webhook dispatches." },
-                    ],
-                    competencies: [
-                        "RESTful JSON API Standards & Versioning",
-                        "Relational Schema Normalization & Indexing",
-                        "Background Jobs & Redis Cache Stores",
-                        "CI/CD Automated GitHub Action Deployments",
-                    ],
-                    curriculum: [
-                        { phase: "PHASE 01", weeks: "WEEKS 1 – 3", title: "Ruby Fundamentals & Object-Oriented Programming", description: "Deep dive into Ruby syntax, blocks, procs, lambdas, modules, mixins, and the object model.", tags: ["Ruby 3.2", "IRB", "Bundler"] },
-                        { phase: "PHASE 02", weeks: "WEEKS 4 – 7", title: "Rails 7.1 MVC Architecture & ActiveRecord", description: "Master Rails conventions, routing, controllers, views, and the full MVC flow.", tags: ["Rails 7.1", "ActiveRecord", "PostgreSQL 16"] },
-                        { phase: "PHASE 03", weeks: "WEEKS 8 – 12", title: "RESTful APIs, JWT Authentication & TDD", description: "Design scalable REST APIs with JWT authentication, Pundit authorization, and rate limiting.", tags: ["REST APIs", "JWT", "RSpec & TDD"] },
-                        { phase: "PHASE 04", weeks: "WEEKS 13 – 16", title: "Background Jobs, Docker & Production Deployment", description: "Implement Sidekiq background workers with Redis, containerize the app with Docker Compose, and deploy to production with GitHub Actions CI/CD pipelines.", tags: ["Sidekiq", "Docker Compose", "GitHub Actions"] },
-                    ],
-                    responsibilities: [
-                        { order: 1, title: "Build RESTful API Endpoints", description: "Design and implement production-grade REST APIs with proper versioning, error handling, and request validation." },
-                        { order: 2, title: "Write Comprehensive RSpec Test Suites", description: "Maintain deterministic unit, request, and integration tests with high coverage using FactoryBot and VCR." },
-                        { order: 3, title: "Daily Agile Standups & PR Reviews", description: "Participate in 15-minute morning standups, review peer code, and track ticket velocity on GitHub Projects." },
-                        { order: 4, title: "Database Schema Design & Optimization", description: "Design normalized PostgreSQL schemas, write migrations, and optimize queries with proper indexes and eager loading." },
-                    ],
-                    qualifications: {
-                        academic: [
-                            "Enrolled 3rd or 4th-year student in Computer Science, Software Engineering, or Computer Engineering.",
-                            "Minimum cumulative GPA of 75% or equivalent academic performance.",
-                        ],
-                        technical: [
-                            "Solid understanding of Object-Oriented Programming (any language).",
-                            "Basic familiarity with relational databases and SQL.",
-                            "Comfortable with Git version control (branching, pull requests, merge conflicts).",
-                        ],
-                    },
-                }),
             },
-        });
-        createdOpportunities.push(opp);
-        console.log(`  ✅ Created: ${opportunityTitles[i]}`);
+        },
+
+        // 2) Frontend Developer Intern - Future Labs
+        {
+            data: {
+                companyId: createdCompanies[1].id,
+                trainerId: null,
+
+                title: "Frontend Developer Intern",
+                description:
+                    "A training program to build modern user interfaces using React, TypeScript, and Tailwind, focusing on reusable components, state management, and API integration.",
+                requiredSkills: "React,TypeScript,Tailwind",
+                duration: "4 Months",
+                totalSeats: 12,
+                location: "Future Labs HQ, Gaza",
+                meetingLink: "https://meet.tadreeby.com/frontend-intern",
+
+                isActive: true,
+                status: OpportunityStatus.OPEN,
+                type: TrainingType.HYBRID,
+
+                applicationDeadline: new Date("2026-08-15T23:59:00Z"),
+                stipend: 0,
+                daysPerWeek: 3,
+                trainingField: "Frontend Development",
+                workDays: "Sunday - Tuesday - Thursday",
+                workHours: "09:00 - 15:00",
+                cohort: "Cohort Fall 2026",
+                coverImage,
+
+                publishedAt: new Date("2026-07-01T10:00:00Z"),
+                closedAt: null,
+
+                hoursTotal: 200,
+                hoursPerWeek: 20,
+                dailyHours: 6,
+                startDate: new Date("2026-08-20T09:00:00Z"),
+                endDate: new Date("2026-12-15T15:00:00Z"),
+                workStartTime: "09:00",
+                workEndTime: "15:00",
+
+                attendanceMinPercent: 90,
+                checkInStart: "08:45",
+                checkInEnd: "09:15",
+
+                venueName: "Future Labs HQ",
+                venueAddress: "Al-Rimal District, Gaza",
+                venueEquipment:
+                    "MacBook workstations, 4K monitors, high-speed internet, and collaborative meeting rooms.",
+                remoteTools: "Slack, GitHub, Figma",
+                latitude: 31.515,
+                longitude: 34.445,
+
+                techStack: [
+                    "React 18",
+                    "TypeScript",
+                    "Tailwind CSS",
+                    "Vite",
+                    "React Query",
+                    "Zustand",
+                    "Figma",
+                    "Git",
+                ],
+
+                learningObjectives: [
+                    {
+                        title: "Build Reusable React Components",
+                        description:
+                            "Create scalable, reusable, and accessible UI components using modern React patterns and TypeScript.",
+                    },
+                    {
+                        title: "Master State Management & API Integration",
+                        description:
+                            "Manage local and server state using React Query, Zustand, and REST APIs.",
+                    },
+                    {
+                        title: "Implement Responsive & Accessible UI",
+                        description:
+                            "Use Tailwind CSS to build responsive layouts that work across mobile, tablet, and desktop.",
+                    },
+                    {
+                        title: "Collaborate with Designers & Backend Teams",
+                        description:
+                            "Translate Figma designs into production code and integrate with backend endpoints.",
+                    },
+                ],
+
+                competencies: [
+                    "Component-Driven Development",
+                    "TypeScript Best Practices",
+                    "Responsive Web Design",
+                    "API Integration & Error Handling",
+                ],
+
+                curriculum: [
+                    {
+                        phase: "PHASE 01",
+                        weeks: "WEEKS 1 – 3",
+                        title: "React Fundamentals & TypeScript",
+                        description:
+                            "Understand JSX, props, state, hooks, and TypeScript basics for React projects.",
+                        tags: ["React", "TypeScript", "Vite"],
+                    },
+                    {
+                        phase: "PHASE 02",
+                        weeks: "WEEKS 4 – 6",
+                        title: "Styling & Responsive Design",
+                        description:
+                            "Master Tailwind CSS, responsive breakpoints, and reusable design systems.",
+                        tags: ["Tailwind CSS", "Responsive", "Design System"],
+                    },
+                    {
+                        phase: "PHASE 03",
+                        weeks: "WEEKS 7 – 10",
+                        title: "State Management & API Integration",
+                        description:
+                            "Integrate REST APIs, handle loading/error states, and manage global state.",
+                        tags: ["React Query", "Zustand", "REST APIs"],
+                    },
+                    {
+                        phase: "PHASE 04",
+                        weeks: "WEEKS 11 – 14",
+                        title: "Testing & Deployment",
+                        description:
+                            "Write component tests and deploy frontend apps to production.",
+                        tags: ["Vitest", "Testing Library", "Vercel"],
+                    },
+                ],
+
+                responsibilities: [
+                    {
+                        order: 1,
+                        title: "Develop UI Components",
+                        description:
+                            "Build reusable React components based on Figma designs and project requirements.",
+                    },
+                    {
+                        order: 2,
+                        title: "Integrate REST APIs",
+                        description:
+                            "Connect frontend components with backend APIs and handle data fetching.",
+                    },
+                    {
+                        order: 3,
+                        title: "Participate in Code Reviews",
+                        description:
+                            "Review pull requests and provide constructive feedback to peers.",
+                    },
+                    {
+                        order: 4,
+                        title: "Maintain Code Quality",
+                        description:
+                            "Follow ESLint, Prettier, and TypeScript best practices.",
+                    },
+                ],
+
+                qualifications: {
+                    academic: [
+                        "3rd or 4th-year student in Computer Science or Software Engineering.",
+                        "Minimum cumulative GPA of 75%.",
+                    ],
+                    technical: [
+                        "Basic knowledge of HTML, CSS, JavaScript.",
+                        "Introductory understanding of React or any UI library.",
+                        "Familiarity with Git and GitHub.",
+                    ],
+                },
+
+                benefits: [
+                    "Verified certificate",
+                    "Weekly code reviews",
+                    "Flexible work environment",
+                    "Potential transition to full-time employment",
+                ],
+
+                certificateInfo: {
+                    name: "Verified Certificate of Mastery",
+                    signedBy: "Future Labs",
+                    verifiable: true,
+                    verifiableOn: ["LinkedIn", "Tadreeby Registry"],
+                },
+            },
+        },
+
+        // 3) Full Stack Developer Intern - Tadreeby Tech
+        {
+            data: {
+                companyId: createdCompanies[0].id,
+                trainerId: null,
+
+                title: "Full Stack Developer Intern",
+                description:
+                    "A training program combining frontend and backend development using React, Node.js, and PostgreSQL, building complete applications and deploying them.",
+                requiredSkills: "React,Node.js,PostgreSQL",
+                duration: "5 Months",
+                totalSeats: 14,
+                location: "Remote / Online",
+                meetingLink: "https://meet.tadreeby.com/fullstack-intern",
+
+                isActive: true,
+                status: OpportunityStatus.OPEN,
+                type: TrainingType.REMOTE,
+
+                applicationDeadline: new Date("2026-09-01T23:59:00Z"),
+                stipend: 0,
+                daysPerWeek: 3,
+                trainingField: "Full Stack Development",
+                workDays: "Sunday - Tuesday - Thursday",
+                workHours: "09:00 - 15:00",
+                cohort: "Cohort Fall 2026",
+                coverImage,
+
+                publishedAt: new Date("2026-07-15T10:00:00Z"),
+                closedAt: null,
+
+                hoursTotal: 200,
+                hoursPerWeek: 20,
+                dailyHours: 6,
+                startDate: new Date("2026-09-10T09:00:00Z"),
+                endDate: new Date("2027-02-10T15:00:00Z"),
+                workStartTime: "09:00",
+                workEndTime: "15:00",
+
+                attendanceMinPercent: 90,
+                checkInStart: "08:45",
+                checkInEnd: "09:15",
+
+                venueName: "Remote",
+                venueAddress: "Online",
+                venueEquipment:
+                    "Personal laptop, webcam, stable internet connection, and headset.",
+                remoteTools: "Discord, GitHub, Zoom",
+                latitude: null,
+                longitude: null,
+
+                techStack: [
+                    "React",
+                    "Node.js",
+                    "Express",
+                    "PostgreSQL",
+                    "TypeScript",
+                    "Prisma",
+                    "Tailwind CSS",
+                    "Docker",
+                ],
+
+                learningObjectives: [
+                    {
+                        title: "Build Full Stack Applications",
+                        description:
+                            "Develop complete web applications from frontend to backend and database.",
+                    },
+                    {
+                        title: "Design RESTful APIs",
+                        description:
+                            "Create secure and scalable APIs using Node.js and Express.",
+                    },
+                    {
+                        title: "Work with Relational Databases",
+                        description:
+                            "Design schemas, write queries, and use ORMs like Prisma with PostgreSQL.",
+                    },
+                    {
+                        title: "Deploy Production Applications",
+                        description:
+                            "Containerize and deploy full stack apps using Docker and cloud services.",
+                    },
+                ],
+
+                competencies: [
+                    "Frontend & Backend Integration",
+                    "Database Design",
+                    "API Security",
+                    "Deployment & DevOps Basics",
+                ],
+
+                curriculum: [
+                    {
+                        phase: "PHASE 01",
+                        weeks: "WEEKS 1 – 4",
+                        title: "Frontend with React & TypeScript",
+                        description:
+                            "Build modern UIs and manage state in React applications.",
+                        tags: ["React", "TypeScript", "Tailwind"],
+                    },
+                    {
+                        phase: "PHASE 02",
+                        weeks: "WEEKS 5 – 9",
+                        title: "Backend with Node.js & Express",
+                        description:
+                            "Create REST APIs, authentication, and business logic.",
+                        tags: ["Node.js", "Express", "JWT"],
+                    },
+                    {
+                        phase: "PHASE 03",
+                        weeks: "WEEKS 10 – 14",
+                        title: "Database & Prisma",
+                        description:
+                            "Model data, write migrations, and query PostgreSQL using Prisma.",
+                        tags: ["PostgreSQL", "Prisma", "SQL"],
+                    },
+                    {
+                        phase: "PHASE 04",
+                        weeks: "WEEKS 15 – 18",
+                        title: "Testing, Docker & Deployment",
+                        description:
+                            "Test APIs, containerize apps, and deploy to production.",
+                        tags: ["Docker", "Testing", "CI/CD"],
+                    },
+                ],
+
+                responsibilities: [
+                    {
+                        order: 1,
+                        title: "Develop Frontend Features",
+                        description:
+                            "Build responsive UI components and integrate them with backend APIs.",
+                    },
+                    {
+                        order: 2,
+                        title: "Build Backend Endpoints",
+                        description:
+                            "Implement REST APIs, authentication, and database operations.",
+                    },
+                    {
+                        order: 3,
+                        title: "Write Tests",
+                        description:
+                            "Write unit and integration tests for both frontend and backend.",
+                    },
+                    {
+                        order: 4,
+                        title: "Collaborate in Agile Team",
+                        description:
+                            "Participate in standups, sprint planning, and code reviews.",
+                    },
+                ],
+
+                qualifications: {
+                    academic: [
+                        "3rd or 4th-year student in Computer Science or related fields.",
+                        "Good cumulative GPA.",
+                    ],
+                    technical: [
+                        "Knowledge of JavaScript/TypeScript.",
+                        "Understanding of React and Node.js basics.",
+                        "Familiarity with relational databases.",
+                    ],
+                },
+
+                benefits: [
+                    "Verified certificate",
+                    "Remote work",
+                    "Real-world projects",
+                    "Career mentorship",
+                ],
+
+                certificateInfo: {
+                    name: "Verified Certificate of Mastery",
+                    signedBy: "Tadreeby Tech",
+                    verifiable: true,
+                    verifiableOn: ["LinkedIn", "Tadreeby Registry"],
+                },
+            },
+        },
+
+        // 4) Data Science Intern - Future Labs
+        {
+            data: {
+                companyId: createdCompanies[1].id,
+                trainerId: null,
+
+                title: "Data Science Intern",
+                description:
+                    "A training program in data analysis and machine learning using Python, Pandas, and Scikit-learn, with hands-on projects on real data.",
+                requiredSkills: "Python,Pandas,Scikit-learn",
+                duration: "3 Months",
+                totalSeats: 16,
+                location: "Future Labs HQ, Gaza",
+                meetingLink: "https://meet.tadreeby.com/data-intern",
+
+                isActive: true,
+                status: OpportunityStatus.OPEN,
+                type: TrainingType.HYBRID,
+
+                applicationDeadline: new Date("2026-08-30T23:59:00Z"),
+                stipend: 0,
+                daysPerWeek: 3,
+                trainingField: "Data Science",
+                workDays: "Sunday - Tuesday - Thursday",
+                workHours: "09:00 - 15:00",
+                cohort: "Cohort Fall 2026",
+                coverImage,
+
+                publishedAt: new Date("2026-07-20T10:00:00Z"),
+                closedAt: null,
+
+                hoursTotal: 200,
+                hoursPerWeek: 20,
+                dailyHours: 6,
+                startDate: new Date("2026-09-05T09:00:00Z"),
+                endDate: new Date("2026-12-05T15:00:00Z"),
+                workStartTime: "09:00",
+                workEndTime: "15:00",
+
+                attendanceMinPercent: 90,
+                checkInStart: "08:45",
+                checkInEnd: "09:15",
+
+                venueName: "Future Labs HQ",
+                venueAddress: "Al-Rimal District, Gaza",
+                venueEquipment:
+                    "Data science workstations, GPU access, Jupyter Hub, and high-speed internet.",
+                remoteTools: "Slack, GitHub, Jupyter",
+                latitude: 31.515,
+                longitude: 34.445,
+
+                techStack: [
+                    "Python 3.12",
+                    "Pandas",
+                    "NumPy",
+                    "Scikit-learn",
+                    "Matplotlib",
+                    "Jupyter",
+                    "SQL",
+                    "Git",
+                ],
+
+                learningObjectives: [
+                    {
+                        title: "Data Cleaning & Exploration",
+                        description:
+                            "Clean, transform, and explore real-world datasets using Pandas and NumPy.",
+                    },
+                    {
+                        title: "Build Machine Learning Models",
+                        description:
+                            "Train, evaluate, and tune models using Scikit-learn.",
+                    },
+                    {
+                        title: "Data Visualization",
+                        description:
+                            "Create clear visualizations using Matplotlib and Seaborn.",
+                    },
+                    {
+                        title: "Communicate Insights",
+                        description:
+                            "Present findings and recommendations to technical and non-technical audiences.",
+                    },
+                ],
+
+                competencies: [
+                    "Data Wrangling",
+                    "Statistical Analysis",
+                    "Machine Learning",
+                    "Data Visualization",
+                ],
+
+                curriculum: [
+                    {
+                        phase: "PHASE 01",
+                        weeks: "WEEKS 1 – 3",
+                        title: "Python for Data Science",
+                        description:
+                            "Master Python basics, NumPy, and Pandas for data manipulation.",
+                        tags: ["Python", "NumPy", "Pandas"],
+                    },
+                    {
+                        phase: "PHASE 02",
+                        weeks: "WEEKS 4 – 6",
+                        title: "Data Visualization & EDA",
+                        description:
+                            "Perform exploratory data analysis and create visualizations.",
+                        tags: ["Matplotlib", "Seaborn", "EDA"],
+                    },
+                    {
+                        phase: "PHASE 03",
+                        weeks: "WEEKS 7 – 9",
+                        title: "Machine Learning Fundamentals",
+                        description:
+                            "Learn supervised and unsupervised learning with Scikit-learn.",
+                        tags: ["Scikit-learn", "ML", "Model Evaluation"],
+                    },
+                    {
+                        phase: "PHASE 04",
+                        weeks: "WEEKS 10 – 12",
+                        title: "Capstone Project",
+                        description:
+                            "Build an end-to-end data science project and present it.",
+                        tags: ["Capstone", "Presentation", "Portfolio"],
+                    },
+                ],
+
+                responsibilities: [
+                    {
+                        order: 1,
+                        title: "Clean and Prepare Data",
+                        description:
+                            "Handle missing values, outliers, and feature engineering.",
+                    },
+                    {
+                        order: 2,
+                        title: "Build and Evaluate Models",
+                        description:
+                            "Train machine learning models and evaluate their performance.",
+                    },
+                    {
+                        order: 3,
+                        title: "Create Visualizations",
+                        description:
+                            "Generate charts and dashboards to communicate insights.",
+                    },
+                    {
+                        order: 4,
+                        title: "Document Work",
+                        description:
+                            "Maintain clean notebooks and project documentation.",
+                    },
+                ],
+
+                qualifications: {
+                    academic: [
+                        "Student in Computer Science, Statistics, Mathematics, or equivalent.",
+                        "Good cumulative GPA.",
+                    ],
+                    technical: [
+                        "Basic knowledge of Python.",
+                        "Understanding of statistics principles.",
+                        "Familiarity with Jupyter Notebook.",
+                    ],
+                },
+
+                benefits: [
+                    "Verified certificate",
+                    "Hands-on project for your portfolio",
+                    "Mentorship from data scientists",
+                    "Potential publication or employment",
+                ],
+
+                certificateInfo: {
+                    name: "Verified Certificate of Mastery",
+                    signedBy: "Future Labs",
+                    verifiable: true,
+                    verifiableOn: ["LinkedIn", "Tadreeby Registry"],
+                },
+            },
+        },
+
+        // 5) DevOps Engineer Intern - Tadreeby Tech
+        {
+            data: {
+                companyId: createdCompanies[0].id,
+                trainerId: null,
+
+                title: "DevOps Engineer Intern",
+                description:
+                    "A training program on DevOps tools, CI/CD, and containers using Docker, Kubernetes, and AWS, building automated deployment pipelines.",
+                requiredSkills: "Docker,Kubernetes,AWS",
+                duration: "4 Months",
+                totalSeats: 18,
+                location: "Tadreeby Tech HQ, Gaza",
+                meetingLink: "https://meet.tadreeby.com/devops-intern",
+
+                isActive: true,
+                status: OpportunityStatus.OPEN,
+                type: TrainingType.ONSITE,
+
+                applicationDeadline: new Date("2026-09-15T23:59:00Z"),
+                stipend: 0,
+                daysPerWeek: 3,
+                trainingField: "DevOps Engineering",
+                workDays: "Sunday - Tuesday - Thursday",
+                workHours: "09:00 - 15:00",
+                cohort: "Cohort Fall 2026",
+                coverImage,
+
+                publishedAt: new Date("2026-08-01T10:00:00Z"),
+                closedAt: null,
+
+                hoursTotal: 200,
+                hoursPerWeek: 20,
+                dailyHours: 6,
+                startDate: new Date("2026-09-20T09:00:00Z"),
+                endDate: new Date("2027-01-20T15:00:00Z"),
+                workStartTime: "09:00",
+                workEndTime: "15:00",
+
+                attendanceMinPercent: 90,
+                checkInStart: "08:45",
+                checkInEnd: "09:15",
+
+                venueName: "Tadreeby Tech HQ",
+                venueAddress: "Omar Al-Mukhtar Street, Gaza",
+                venueEquipment:
+                    "Cloud lab access, Docker-ready servers, dual monitors, and gigabit LAN.",
+                remoteTools: "Discord, GitHub, AWS Console",
+                latitude: 31.501,
+                longitude: 34.466,
+
+                techStack: [
+                    "Linux",
+                    "Docker",
+                    "Kubernetes",
+                    "AWS",
+                    "Terraform",
+                    "GitHub Actions",
+                    "Prometheus",
+                    "Grafana",
+                ],
+
+                learningObjectives: [
+                    {
+                        title: "Master Linux & Shell Scripting",
+                        description:
+                            "Work confidently in Linux environments and automate tasks with Bash.",
+                    },
+                    {
+                        title: "Containerize Applications",
+                        description:
+                            "Build, run, and manage Docker containers and Docker Compose setups.",
+                    },
+                    {
+                        title: "Orchestrate with Kubernetes",
+                        description:
+                            "Deploy and scale applications on Kubernetes clusters.",
+                    },
+                    {
+                        title: "Build CI/CD Pipelines",
+                        description:
+                            "Create automated build, test, and deployment pipelines using GitHub Actions.",
+                    },
+                ],
+
+                competencies: [
+                    "Linux Administration",
+                    "Containerization",
+                    "Cloud Infrastructure",
+                    "CI/CD Automation",
+                ],
+
+                curriculum: [
+                    {
+                        phase: "PHASE 01",
+                        weeks: "WEEKS 1 – 3",
+                        title: "Linux & Networking Essentials",
+                        description:
+                            "Master Linux commands, permissions, networking, and shell scripting.",
+                        tags: ["Linux", "Bash", "Networking"],
+                    },
+                    {
+                        phase: "PHASE 02",
+                        weeks: "WEEKS 4 – 7",
+                        title: "Docker & Containerization",
+                        description:
+                            "Build and manage containers, images, and Docker Compose.",
+                        tags: ["Docker", "Docker Compose", "Registry"],
+                    },
+                    {
+                        phase: "PHASE 03",
+                        weeks: "WEEKS 8 – 11",
+                        title: "Kubernetes & Cloud",
+                        description:
+                            "Deploy applications on Kubernetes and use AWS core services.",
+                        tags: ["Kubernetes", "AWS", "Terraform"],
+                    },
+                    {
+                        phase: "PHASE 04",
+                        weeks: "WEEKS 12 – 16",
+                        title: "CI/CD & Monitoring",
+                        description:
+                            "Build pipelines and monitor systems with Prometheus and Grafana.",
+                        tags: ["GitHub Actions", "Prometheus", "Grafana"],
+                    },
+                ],
+
+                responsibilities: [
+                    {
+                        order: 1,
+                        title: "Automate Builds & Deployments",
+                        description:
+                            "Create CI/CD pipelines for building, testing, and deploying applications.",
+                    },
+                    {
+                        order: 2,
+                        title: "Manage Containers",
+                        description:
+                            "Write Dockerfiles and manage containerized services.",
+                    },
+                    {
+                        order: 3,
+                        title: "Monitor Systems",
+                        description:
+                            "Set up monitoring, logging, and alerting for applications.",
+                    },
+                    {
+                        order: 4,
+                        title: "Document Infrastructure",
+                        description:
+                            "Maintain clear documentation for infrastructure and deployment processes.",
+                    },
+                ],
+
+                qualifications: {
+                    academic: [
+                        "Student in Computer Science or Software Engineering.",
+                        "Good cumulative GPA.",
+                    ],
+                    technical: [
+                        "Basic knowledge of Linux systems.",
+                        "Understanding of networking principles.",
+                        "Familiarity with Git.",
+                    ],
+                },
+
+                benefits: [
+                    "Verified certificate",
+                    "Hands-on AWS training",
+                    "Real-world projects",
+                    "Career mentorship",
+                ],
+
+                certificateInfo: {
+                    name: "Verified Certificate of Mastery",
+                    signedBy: "Tadreeby Tech",
+                    verifiable: true,
+                    verifiableOn: ["LinkedIn", "Tadreeby Registry"],
+                },
+            },
+        },
+    ];
+
+    const createdOpportunities: any[] = [];
+    for (const opp of fullOpportunities) {
+        const created = await prisma.trainingOpportunity.create(opp);
+        createdOpportunities.push(created);
+        console.log(`  ✅ Created: ${created.title}`);
     }
 
     // ---------- INTERNSHIP (based on Backend Opportunity) ----------
