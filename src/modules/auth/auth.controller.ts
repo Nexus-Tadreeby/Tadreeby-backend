@@ -110,18 +110,30 @@ export class AuthController {
 
     @IsPublic()
     @Post('check-email')
+    @ApiOperation({ summary: 'Check if email is available for registration' })
+    @ApiBody({ schema: { type: 'object', required: ['email'], properties: { email: { type: 'string', example: 'student@university.edu' } } } })
+    @ApiResponse({ status: 200, description: 'Email is available or not' })
+    @ApiResponse({ status: 400, description: 'Validation error' })
     async checkEmail(@Body() body: { email: string }) {
         return this.authService.checkEmailAvailability(body.email);
     }
 
     @IsPublic()
     @Post('check-national-id')
+    @ApiOperation({ summary: 'Check if national ID is available for registration' })
+    @ApiBody({ schema: { type: 'object', required: ['personalID'], properties: { personalID: { type: 'number', example: 123456789 } } } })
+    @ApiResponse({ status: 200, description: 'National ID is available or not' })
+    @ApiResponse({ status: 400, description: 'Validation error' })
     async checkNationalId(@Body() body: { personalID: number }) {
         return this.authService.checkNationalIdAvailability(Number(body.personalID));
     }
 
     @IsPublic()
     @Post('check-student-number')
+    @ApiOperation({ summary: 'Check if student number is available for registration' })
+    @ApiBody({ schema: { type: 'object', required: ['studentNumber', 'universityId'], properties: { studentNumber: { type: 'number', example: 20200970 }, universityId: { type: 'number', example: 1 } } } })
+    @ApiResponse({ status: 200, description: 'Student number is available or not' })
+    @ApiResponse({ status: 400, description: 'Validation error' })
     async checkStudentNumber(@Body() body: { studentNumber: number; universityId: number }) {
         return this.authService.checkStudentNumberAvailability(
             Number(body.studentNumber),
