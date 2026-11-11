@@ -304,7 +304,7 @@ export class AuthService {
                 role: user.role,
                 sid: session.id,
             },
-            { expiresIn: "1d" },
+            { expiresIn: "15min" },
         );
 
 
@@ -383,7 +383,7 @@ export class AuthService {
                 role: matchedSession.userId,
                 sid: matchedSession.id,
             },
-            { expiresIn: "1d" },
+            { expiresIn: "15min" },
         );
 
         return {
