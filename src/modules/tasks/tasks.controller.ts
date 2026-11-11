@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, UploadedFile, UseInterceptors, UsePipes } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { taskFileMulterConfig } from 'src/common/config/multer.config';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -8,6 +8,10 @@ import { Roles } from 'src/common/decorators/roles.decorator';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { AuthedUser } from 'src/common/decorators/authedUser.decorator';
 import { TasksService } from './tasks.service';
+import { ZodValidationPipe } from 'src/common/pipes/zod.pipe';
+import { CreateTaskSchema } from './validation/create-task.validation.schema';
+import { CreateTaskDto } from './dto/create-task.dto';
+import { type authedUserType } from 'src/common/types/unifiedType.types';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -19,13 +23,17 @@ export class TasksController {
     @Post('tasks')
     @Roles(UserRole.COMPANY_TRAINER)
     @ApiOperation({ summary: 'Create a task for an internship' })
-    async create(@Body() dto: any, @AuthedUser() user: any) {
-        return this.service.create(user.id, dto);
+    async create(
+        @AuthedUser() user: authedUserType,
+        @Body(new ZodValidationPipe(CreateTaskSchema)) dto: CreateTaskDto) {
+        const data = await this.service.create(user.id, dto);
+        return { success: true, data, message: 'Task created successfully' };
+
     }
 
     @Get('tasks')
     @Roles(UserRole.COMPANY_TRAINER)
-    async list(@AuthedUser() user: any, @Query('traineeId') traineeId?: string, @Query('status') status?: string) {
+    async list(@AuthedUser() user: authedUserType, @Query('traineeId') traineeId?: string, @Query('status') status?: string) {
         return this.service.list(user.id, traineeId ? Number(traineeId) : undefined, status);
     }
 

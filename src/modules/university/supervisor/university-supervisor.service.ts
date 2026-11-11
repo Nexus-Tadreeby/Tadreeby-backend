@@ -10,9 +10,16 @@ export class UniversitySupervisorService {
     async getDashboard(universityId: number, supervisorId: number) {
         const [assignedStudents, activeInternships, pendingReviews] = await Promise.all([
             this.prisma.supervisorStudent.count({ where: { supervisorId } }),
-            this.prisma.internship.count({ where: { universityId, supervisorId } }),
+            this.prisma.internshipStudent.count({
+                where: { supervisorId, student: { universityId } },
+            }),
             this.prisma.evaluation.count({
-                where: { internship: { universityId }, type: 'SUPERVISOR' },
+                where: {
+                    internship: {
+                        students: { some: { supervisorId, student: { universityId } } },
+                    },
+                    type: 'SUPERVISOR',
+                },
             }),
         ]);
 
@@ -116,8 +123,13 @@ export class UniversitySupervisorService {
         const internship = await this.prisma.internship.findFirst({
             where: {
                 id: dto.internshipId,
-                universityId,
-                supervisorId,
+                students: {
+                    some: {
+                        studentId: dto.studentId,
+                        supervisorId,
+                        student: { universityId },
+                    },
+                },
             },
         });
 

@@ -26,6 +26,12 @@ export class CompanyTrainerController {
         return this.service.getTrainees(user.id, user.companyId);
     }
 
+    @Get('internships/:id')
+    @Roles(UserRole.COMPANY_TRAINER)
+    async getInternship(@Param('id') id: string, @AuthedUser() user: any) {
+        return this.service.getInternship(Number(id), user.id, user.companyId);
+    }
+
     @Get('trainees/:id')
     @Roles(UserRole.COMPANY_TRAINER)
     async getTrainee(@Param('id') id: string, @AuthedUser() user: any) {

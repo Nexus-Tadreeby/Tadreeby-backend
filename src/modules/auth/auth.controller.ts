@@ -14,13 +14,10 @@ import {
     UploadedFile,
 } from "@nestjs/common";
 import { FileInterceptor } from '@nestjs/platform-express';
-import * as fs from 'fs';
-import * as path from 'path';
 
 import express from "express";
 
 import { AuthService } from "./auth.service";
-import { generateFileName, FileTypeLabel } from "../../common/utils/file-naming.util";
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 
 import { studentRegisterSchema, type studentRegisterSchemaDto } from "../student/validation/student.register.validation.schema";
@@ -99,23 +96,9 @@ export class AuthController {
             throw new BadRequestException('Verification document is required');
         }
 
-        // Generate new filename with student name + file type
-        const newFilename = generateFileName(
-            body.firstName,
-            body.lastName,
-            FileTypeLabel.VERIFICATION,
-            file.originalname,
-        );
-
-        // Rename the uploaded file
-        const uploadDir = process.env.UPLOAD_PATH || './uploads/pending';
-        const oldPath = path.join(uploadDir, file.filename);
-        const newPath = path.join(uploadDir, newFilename);
-        fs.renameSync(oldPath, newPath);
-
         const dtoData = {
             ...body,
-            verificationDocument: newFilename,
+            verificationDocument: `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
         };
 
         const validatedDto = studentRegisterSchema.parse(dtoData);
@@ -127,18 +110,30 @@ export class AuthController {
 
     @IsPublic()
     @Post('check-email')
+    @ApiOperation({ summary: 'Check if email is available for registration' })
+    @ApiBody({ schema: { type: 'object', required: ['email'], properties: { email: { type: 'string', example: 'student@university.edu' } } } })
+    @ApiResponse({ status: 200, description: 'Email is available or not' })
+    @ApiResponse({ status: 400, description: 'Validation error' })
     async checkEmail(@Body() body: { email: string }) {
         return this.authService.checkEmailAvailability(body.email);
     }
 
     @IsPublic()
     @Post('check-national-id')
+    @ApiOperation({ summary: 'Check if national ID is available for registration' })
+    @ApiBody({ schema: { type: 'object', required: ['personalID'], properties: { personalID: { type: 'number', example: 123456789 } } } })
+    @ApiResponse({ status: 200, description: 'National ID is available or not' })
+    @ApiResponse({ status: 400, description: 'Validation error' })
     async checkNationalId(@Body() body: { personalID: number }) {
         return this.authService.checkNationalIdAvailability(Number(body.personalID));
     }
 
     @IsPublic()
     @Post('check-student-number')
+    @ApiOperation({ summary: 'Check if student number is available for registration' })
+    @ApiBody({ schema: { type: 'object', required: ['studentNumber', 'universityId'], properties: { studentNumber: { type: 'number', example: 20200970 }, universityId: { type: 'number', example: 1 } } } })
+    @ApiResponse({ status: 200, description: 'Student number is available or not' })
+    @ApiResponse({ status: 400, description: 'Validation error' })
     async checkStudentNumber(@Body() body: { studentNumber: number; universityId: number }) {
         return this.authService.checkStudentNumberAvailability(
             Number(body.studentNumber),

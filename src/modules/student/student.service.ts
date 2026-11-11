@@ -9,6 +9,7 @@ import { removeFields } from '../../common/utils/object.util';
 import { AuthUserResponse } from 'src/common/types/unifiedType.types';
 import { UpdateStudentProfileDto } from './dto/update-student-profile.dto';
 import { convertBigIntFields } from 'src/common/utils/bigint.util';
+import { FilesService, FileType } from '../files/files.service';
 
 @Injectable()
 export class StudentService {
@@ -17,6 +18,7 @@ export class StudentService {
   constructor(
     private readonly prisma: DatabaseService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly filesService: FilesService,
   ) { }
 
 
@@ -145,13 +147,72 @@ export class StudentService {
             shortCode: true,
           },
         },
+        internships: {
+          where: { internship: { status: InternshipStatus.ACTIVE } },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: {
+            internship: {
+              include: {
+                trainer: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                    phone: true,
+                    profileImage: true,
+                  },
+                },
+                opportunity: {
+                  select: {
+                    id: true,
+                    title: true,
+                    duration: true,
+                    type: true,
+                  },
+                },
+                company: {
+                  select: {
+                    id: true,
+                    name: true,
+                    shortCode: true,
+                    logo: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
     if (!profile) throw new NotFoundException('Student profile not found');
-    // return profile;
-    return convertBigIntFields(profile);
+    const currentEnrollment = profile.internships[0];
+    const { internships, ...profileData } = profile;
+    const transformed = {
+      ...profileData,
+      university: profile.university?.name || null,
+      currentInternship: currentEnrollment
+        ? {
+          id: currentEnrollment.internship.id,
+          title: currentEnrollment.internship.opportunity.title,
+          duration: currentEnrollment.internship.opportunity.duration,
+          type: currentEnrollment.internship.opportunity.type,
+          enrolledAt: currentEnrollment.createdAt,
+          trainer: currentEnrollment.internship.trainer,
+          company: {
+            ...currentEnrollment.internship.company,
+            enrolledAt: currentEnrollment.createdAt,
+          },
+        }
+        : null,
+    };
+    return convertBigIntFields(transformed);
   }
+
+
+
 
   async updateProfile(userId: number, dto: UpdateStudentProfileDto) {
     const profile = await this.prisma.studentProfile.findUnique({
@@ -178,7 +239,8 @@ export class StudentService {
     // if (dto.lastName) userUpdateData.lastName = dto.lastName;
     if (dto.phone) userUpdateData.phone = dto.phone;
     if (dto.profileImage !== undefined) userUpdateData.profileImage = dto.profileImage;
-    if (dto.recoveryEmail !== undefined) userUpdateData.recoveryEmail = dto.recoveryEmail; 
+    if (dto.recoveryEmail !== undefined) userUpdateData.recoveryEmail = dto.recoveryEmail;
+
     if (Object.keys(userUpdateData).length > 0) {
       await this.prisma.user.update({
         where: { id: userId },
@@ -213,11 +275,32 @@ export class StudentService {
 
           },
         },
+        internships: {
+          where: { internship: { status: InternshipStatus.ACTIVE } },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: {
+            internship: {
+              include: {
+                company: {
+                  select: {
+                    id: true,
+                    name: true,
+                    shortCode: true,
+                    logo: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
-    // ✅ Convert BigInt AND return the data
-    return convertBigIntFields(updated);
+    return convertBigIntFields({
+      ...updated,
+      company: updated.internships[0]?.internship.company || null,
+    });
   }
 
 
@@ -352,13 +435,6 @@ export class StudentService {
               },
             },
 
-            university: {
-              select: {
-                id: true,
-                name: true,
-                logo: true,
-              },
-            },
           },
         },
       },
@@ -383,42 +459,310 @@ export class StudentService {
 
 
   async getOpportunityById(userId: number, opportunityId: number) {
-    const opportunity = await this.prisma.trainingOpportunity.findUnique({
-      where: { id: opportunityId, isActive: true },
-      include: { company: true },
-    });
+    const [opportunity, studentProfile, existingApplication] = await Promise.all([
+      this.prisma.trainingOpportunity.findUnique({
+        where: { id: opportunityId, isActive: true },
+        include: {
+          company: true,
+          trainer: {
+            include: {
+              trainerProfile: true,
+            },
+          },
+          applications: {
+            where: { studentId: userId },
+            select: { id: true, status: true },
+            take: 1,
+            orderBy: { appliedAt: 'desc' },
+          },
+          internships: {
+            select: { id: true },
+          },
+        },
+      }),
+      this.prisma.studentProfile.findUnique({
+        where: { userId },
+        select: { approvalStatus: true, skills: true, major: true, cvUrl: true },
+      }),
+      this.prisma.application.findFirst({
+        where: { studentId: userId, opportunityId },
+        select: { id: true, status: true },
+      }),
+    ]);
 
     if (!opportunity) {
       throw new NotFoundException('Opportunity not found');
     }
 
-    return this.mapOpportunity(opportunity);
+    const cvText = await this.extractCvText(studentProfile?.cvUrl ?? null);
+    return this.mapOpportunity(opportunity, studentProfile, existingApplication, cvText);
   }
 
-  private mapOpportunity(opportunity: any) {
-    const requiredSkills = opportunity.requiredSkills
-      ? opportunity.requiredSkills
-        .split(',')
-        .map((skill: string) => skill.trim())
-        .filter(Boolean)
-      : [];
+  private async mapOpportunity(opportunity: any, studentProfile?: { approvalStatus?: string; skills?: string | null; major?: string | null; cvUrl?: string | null } | null, existingApplication?: { id: number; status: string } | null, cvText?: string) {
+    const requiredSkills = this.parseSkillList(opportunity.requiredSkills);
+    const studentSkills = this.parseSkillList(studentProfile?.skills ?? '');
+    const matchedSkills = requiredSkills.filter((skill) =>
+      studentSkills.some((studentSkill) => this.normalizeSkill(studentSkill) === this.normalizeSkill(skill)),
+    );
+    const majorMatch = this.isMajorRelevantToOpportunity(studentProfile?.major, opportunity.trainingField);
+    const cvMatchPercent = this.calculateCvTextMatch(requiredSkills, cvText ?? '', studentProfile?.major ?? null, opportunity.trainingField ?? null);
+    const profileMatch = this.calculateProfileMatch(requiredSkills, matchedSkills.length, majorMatch, cvMatchPercent);
+
+    const durationMonths = this.parseDurationMonths(opportunity.duration);
+    const daysUntilDeadline = opportunity.applicationDeadline
+      ? Math.max(0, Math.ceil((new Date(opportunity.applicationDeadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+      : 0;
+
+    const trainingType = opportunity.type === 'REMOTE'
+      ? 'REMOTE'
+      : opportunity.type === 'HYBRID'
+        ? 'HYBRID'
+        : 'ONSITE';
+
+    const workingSchedule = {
+      days: opportunity.workDays ?? null,
+      startTime: opportunity.workStartTime ?? null,
+      endTime: opportunity.workEndTime ?? null,
+      dailyHours: opportunity.dailyHours ?? null,
+      notes: opportunity.meetingLink ?? null,
+    };
+
+    const companyStats = {
+      internsTrained: opportunity.company?.internsTrained ?? 0,
+      completionRate: opportunity.company?.completionRate ?? 0,
+      universityPartners: opportunity.company?.universityPartners ?? 0,
+      avgStudentRating: opportunity.company?.avgStudentRating ?? 0,
+    };
 
     return {
       id: opportunity.id,
-      company: opportunity.company?.name || 'Company',
-      companyId: opportunity.companyId,
-      internship: opportunity.title,
-      field: opportunity.title,
-      trainer: 'Company Team',
-      seats: opportunity.totalSeats,
-      requiredSkills,
-      type: opportunity.type === 'REMOTE' ? 'Remote' : opportunity.type === 'HYBRID' ? 'Hybrid' : 'On-site',
-      location: opportunity.location || 'Remote',
-      startDate: 'Open now',
-      endDate: opportunity.duration || 'Flexible',
-      image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80',
-      description: opportunity.description,
+      status: opportunity.status,
+      isActive: opportunity.isActive,
+      header: {
+        title: opportunity.title,
+        // subtitle: trainingType,
+        trainingType: trainingType,
+        cohort: opportunity.cohort ?? null,
+        coverImage: opportunity.coverImage ?? null,
+        location: opportunity.location ?? null,
+        company: {
+          name: opportunity.company?.name ?? null,
+          logo: opportunity.company?.logo ?? null,
+          verifiedByTadreeby: opportunity.company?.verifiedByTadreeby ?? false,
+        },
+        mentor: opportunity.trainer
+          ? {
+            id: opportunity.trainer.id,
+            firstName: opportunity.trainer.firstName,
+            lastName: opportunity.trainer.lastName,
+            position: opportunity.trainer.trainerProfile?.position ?? null,
+            bio: opportunity.trainer.trainerProfile?.bio ?? null,
+            yearsExperience: opportunity.trainer.trainerProfile?.yearsExperience ?? null,
+            profileImage: opportunity.trainer.profileImage ?? null,
+          }
+          : null,
+      },
+      stats: {
+        seats: {
+          total: opportunity.totalSeats ?? 0,
+          available: Math.max(0, (opportunity.totalSeats ?? 0) - (opportunity.internships?.length ?? 0)),
+        },
+        duration: {
+          months: durationMonths,
+          hours: opportunity.hoursTotal ?? 0,
+          hoursPerWeek: opportunity.hoursPerWeek ?? 0,
+        },
+        stipend: opportunity.stipend ?? 0,
+        applicationDeadline: opportunity.applicationDeadline ?? null,
+        daysUntilDeadline: daysUntilDeadline,
+      },
+      about: {
+        description: opportunity.description ?? null,
+        techStack: Array.isArray(opportunity.techStack) ? opportunity.techStack : [],
+        learningObjectives: Array.isArray(opportunity.learningObjectives) ? opportunity.learningObjectives : [],
+        competencies: Array.isArray(opportunity.competencies) ? opportunity.competencies : [],
+      },
+      overview: {
+        trainingPeriod: {
+          startDate: opportunity.startDate ?? null,
+          endDate: opportunity.endDate ?? null,
+        },
+        totalDuration: {
+          hours: opportunity.hoursTotal ?? 0,
+          hoursPerWeek: opportunity.hoursPerWeek ?? 0,
+          workingDays: opportunity.workDays ?? null,
+          durationLabel: opportunity.duration ?? null,
+        },
+        trainingVenue: {
+          name: opportunity.venueName ?? null,
+          address: opportunity.venueAddress ?? null,
+          latitude: opportunity.latitude ?? null,
+          longitude: opportunity.longitude ?? null,
+          equipment: opportunity.venueEquipment ?? null,
+          remoteTools: opportunity.remoteTools ?? null,
+        },
+        engineeringField: opportunity.trainingField ?? null,
+      },
+      logistics: {
+        attendanceModel: {
+          type: this.formatAttendanceType(opportunity.type),
+          checkInStart: opportunity.checkInStart ?? null,
+          checkInEnd: opportunity.checkInEnd ?? null,
+          minPercent: opportunity.attendanceMinPercent ?? 0,
+        },
+        workingSchedule,
+      },
+      curriculum: Array.isArray(opportunity.curriculum) ? opportunity.curriculum : [],
+      responsibilities: Array.isArray(opportunity.responsibilities) ? opportunity.responsibilities : [],
+      qualifications: {
+        academic: Array.isArray((opportunity.qualifications as any)?.academic) ? (opportunity.qualifications as any).academic : [],
+        technical: Array.isArray((opportunity.qualifications as any)?.technical) ? (opportunity.qualifications as any).technical : [],
+      },
+      // benefits: Array.isArray(opportunity.benefits) ? opportunity.benefits : [],
+      certificateInfo: opportunity.certificateInfo ?? null,
+      companyStats,
+      application: {
+        isEligible: Boolean(studentProfile),
+        profileMatch,
+        alreadyApplied: Boolean(existingApplication),
+        status: existingApplication?.status ?? null,
+      },
     };
+  }
+
+  private calculateProfileMatch(requiredSkills: string[], matchedSkillCount: number, majorMatch: boolean, cvMatchPercent: number): number {
+    if (requiredSkills.length === 0) return 100;
+
+    const skillMatchPercent = Math.round((matchedSkillCount / requiredSkills.length) * 100);
+    const majorBonus = majorMatch ? 20 : 0;
+    const weightedScore = (skillMatchPercent * 0.7) + (cvMatchPercent * 0.25) + majorBonus;
+
+    return Math.min(100, Math.round(weightedScore));
+  }
+
+  private calculateCvTextMatch(requiredSkills: string[], cvText: string, studentMajor?: string | null, opportunityField?: string | null): number {
+    if (!cvText || requiredSkills.length === 0) {
+      return 0;
+    }
+
+    const normalizedText = this.normalizeCvText(cvText);
+    const relevantSkillMatches = requiredSkills.filter((skill) => {
+      const normalizedSkill = this.normalizeCvText(skill);
+      return normalizedSkill && normalizedText.includes(normalizedSkill);
+    });
+
+    const skillCoverage = (relevantSkillMatches.length / requiredSkills.length) * 100;
+    const majorBonus = this.isMajorRelevantToOpportunity(studentMajor, opportunityField) ? 20 : 0;
+
+    return Math.min(100, Math.round(skillCoverage + majorBonus));
+  }
+
+  private normalizeCvText(value: string): string {
+    return value
+      .toLowerCase()
+      .replace(/https?:\/\/\S+/g, ' ')
+      .replace(/[^a-z0-9\s+.#]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private async extractCvText(cvUrl?: string | null): Promise<string> {
+    if (!cvUrl || !cvUrl.startsWith('data:')) {
+      return '';
+    }
+
+    try {
+      const match = cvUrl.match(/^data:(.*?);base64,(.*)$/i);
+      if (!match) {
+        return '';
+      }
+
+      const mimeType = match[1]?.toLowerCase() ?? '';
+      const base64Data = match[2];
+      const buffer = Buffer.from(base64Data, 'base64');
+
+      if (mimeType.includes('pdf')) {
+        const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+        const pdf = await pdfjs.getDocument({ data: buffer }).promise;
+        const pages: string[] = [];
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const pageText = content.items
+            .map((item: any) => ('str' in item ? item.str : ''))
+            .join(' ');
+          pages.push(pageText);
+        }
+
+        return pages.join(' ');
+      }
+
+      if (mimeType.includes('word') || mimeType.includes('officedocument') || mimeType.includes('document')) {
+        const mammoth = await import('mammoth');
+        const result = await mammoth.extractRawText({ buffer });
+        return result.value ?? '';
+      }
+
+      return buffer.toString('utf8');
+    } catch (error) {
+      return '';
+    }
+  }
+
+  private isMajorRelevantToOpportunity(studentMajor?: string | null, opportunityField?: string | null): boolean {
+    if (!studentMajor || !opportunityField) return false;
+
+    const normalize = (value: string) => value
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const major = normalize(studentMajor);
+    const field = normalize(opportunityField);
+
+    if (!major || !field) return false;
+    if (major === field) return true;
+    if (major.includes(field) || field.includes(major)) return true;
+
+    const majorWords = new Set(major.split(' ').filter(Boolean));
+    const fieldWords = new Set(field.split(' ').filter(Boolean));
+    const overlap = [...majorWords].filter((word) => fieldWords.has(word));
+
+    return overlap.length > 0;
+  }
+
+  private parseSkillList(value: string | null | undefined): string[] {
+    if (!value) return [];
+
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => String(item).trim())
+        .filter(Boolean);
+    }
+
+    return String(value)
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  private parseDurationMonths(value: string | null | undefined): number | null {
+    if (!value) return null;
+
+    const match = String(value).match(/(\d+(?:\.\d+)?)/);
+    if (!match) return null;
+
+    return Number(match[1]);
+  }
+
+  private formatAttendanceType(type: string | null | undefined): string {
+    if (!type) return 'On-Site Lab + QR Verification';
+
+    if (type === 'REMOTE') return 'Remote';
+    if (type === 'HYBRID') return 'On-Site Lab + QR Verification';
+    return 'On-Site Lab + QR Verification';
   }
 
 
@@ -470,9 +814,9 @@ export class StudentService {
         userId: true,
         cvUrl: true,
         user: {
-         select: {
-           recoveryEmail: true,
-         },
+          select: {
+            recoveryEmail: true,
+          },
         },
       },
     });
@@ -574,7 +918,7 @@ export class StudentService {
 
 
 
-  async reuploadDocument(userId: number, verificationDocument: string) {
+  async reuploadDocument(userId: number, file: Express.Multer.File) {
     const profile = await this.prisma.studentProfile.findUnique({ where: { userId } });
     if (!profile) throw new ConflictException('Profile not found');
 
@@ -585,10 +929,16 @@ export class StudentService {
       throw new ConflictException('Cannot reupload document unless status is PENDING or REJECTED');
     }
 
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { firstName: true, lastName: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
     const updated = await this.prisma.studentProfile.update({
       where: { userId },
       data: {
-        verificationDocument,
+        verificationDocument: `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
         approvalStatus: StudentApprovalStatus.PENDING,
         rejectionReason: null,
         approvedAt: null,
@@ -610,18 +960,31 @@ export class StudentService {
 
 
   async getInternships(userId: number) {
-    return this.prisma.internshipStudent.findMany({
+    console.log('🔍 getInternships called with userId:', userId);
+    const result = await this.prisma.internshipStudent.findMany({
       where: { studentId: userId },
       include: {
         internship: {
           include: {
             opportunity: true,
             company: true,
+            trainer: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+                profileImage: true,
+              },
+            },
           },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
+    console.log('📦 Found internships:', result.length);
+    return result;
   }
 
 
@@ -644,19 +1007,11 @@ export class StudentService {
 
     if (existing) throw new ConflictException('Already applied for this opportunity');
 
-    // Get student's university
-    const student = await this.prisma.studentProfile.findUnique({
-      where: { userId },
-      select: { universityId: true },
-    });
-
-    if (!student) throw new NotFoundException('Student profile not found');
-
     const internship = await this.prisma.internship.create({
       data: {
         opportunityId,
         companyId: opportunity.companyId,
-        universityId: student.universityId,
+        title: opportunity.title,
         status: InternshipStatus.ACTIVE,
       },
     });
@@ -679,26 +1034,165 @@ export class StudentService {
 
 
 
-  async getTasks(userId: number) {
+  // async getTasks(userId: number) {
+  //   return this.prisma.task.findMany({
+  //     where: {
+  //       internship: {
+  //         students: {
+  //           some: {
+  //             studentId: userId,
+  //           },
+  //         },
+  //       },
+  //     },
+  //     include: {
+  //       submissions: {
+  //         where: { studentId: userId },
+  //       },
+  //     },
+  //     orderBy: { deadline: 'asc' },
+  //   });
+  // }
+
+
+
+  async getTasks(studentId: number) {
     return this.prisma.task.findMany({
       where: {
         internship: {
           students: {
             some: {
-              studentId: userId,
+              studentId,
             },
           },
         },
       },
+
       include: {
+        internship: true,
+
         submissions: {
-          where: { studentId: userId },
+          where: {
+            studentId,
+          },
         },
       },
-      orderBy: { deadline: 'asc' },
+
+      orderBy: [
+        {
+          deadline: 'asc',
+        },
+        {
+          id: 'desc',
+        },
+      ],
     });
   }
 
+
+  async getTask(
+    studentId: number,
+    taskId: number,
+  ) {
+    const task = await this.prisma.task.findFirst({
+      where: {
+        id: taskId,
+
+        internship: {
+          students: {
+            some: {
+              studentId,
+            },
+          },
+        },
+      },
+
+      include: {
+        internship: true,
+
+        submissions: {
+          where: {
+            studentId,
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException(
+        'Task not found',
+      );
+    }
+
+    return task;
+  }
+
+
+  async getTaskSubmission(
+    studentId: number,
+    taskId: number,
+  ) {
+    const task = await this.getTask(
+      studentId,
+      taskId,
+    );
+
+    return task.submissions[0] ?? null;
+  }
+
+
+
+
+
+  private async saveStudentTaskFile(
+    studentId: number,
+    taskId: number,
+    file: Express.Multer.File,
+  ): Promise<string> {
+    const result = await this.filesService.uploadFile(
+      file,
+      FileType.TASK,
+      studentId,
+      'Student',
+      `${taskId}`,
+    );
+    return result.url;
+  }
+
+
+  async submitTask(
+    studentId: number,
+    taskId: number,
+    file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+
+    // جلب المهمة مع التسليمات الحالية
+    const task = await this.getTask(studentId, taskId);
+
+    // التأكد من عدم وجود تسليم مسبق (تسليم واحد لكل مهمة)
+    if (task.submissions.length > 0) {
+      throw new BadRequestException('You have already submitted this task');
+    }
+
+    // حفظ الملف والحصول على الرابط
+    const fileUrl = await this.saveStudentTaskFile(studentId, taskId, file);
+
+    // إنشاء سجل التسليم في قاعدة البيانات
+    const submission = await this.prisma.taskSubmission.create({
+      data: {
+        taskId,
+        studentId,
+        fileUrl,
+        submittedAt: new Date(),
+      },
+    });
+
+    // إرجاع التسليم مع تحويل BigInt إلى Number
+    return convertBigIntFields(submission);
+  }
 
 
   async getAttendance(userId: number) {
@@ -726,9 +1220,41 @@ export class StudentService {
         studentId: userId,
         internshipId,
       },
+      include: {
+        internship: {
+          select: {
+            opportunity: {
+              select: { hoursTotal: true },
+            },
+          },
+        },
+      },
     });
 
     if (!enrolled) throw new ForbiddenException('You are not enrolled in this internship');
+
+    const maxTrainingHours = enrolled.internship.opportunity.hoursTotal ?? 0;
+    if (maxTrainingHours > 0) {
+      const completedAttendance = await this.prisma.attendance.findMany({
+        where: {
+          studentId: userId,
+          internshipId,
+          checkOut: { not: null },
+        },
+        select: { duration: true },
+      });
+
+      const completedMinutes = completedAttendance.reduce((total, record) => {
+        const duration = record.duration ?? '';
+        const hours = Number(duration.match(/([\d.]+)\s*h/i)?.[1] ?? 0);
+        const minutes = Number(duration.match(/([\d.]+)\s*m/i)?.[1] ?? 0);
+        return total + hours * 60 + minutes;
+      }, 0);
+
+      if (completedMinutes >= maxTrainingHours * 60) {
+        throw new ForbiddenException('You have completed the maximum training hours for this internship');
+      }
+    }
 
     // Check if already checked in today
     const today = new Date();
@@ -765,6 +1291,125 @@ export class StudentService {
 
 
 
+  // async checkOut(studentId: number) {
+  //   const now = new Date();
+
+  //   // ✅ Set checkout time to 4:00 PM of the current day
+  //   const checkoutTime = new Date(now);
+  //   checkoutTime.setHours(16, 0, 0, 0); // 4:00 PM
+
+  //   // Find active attendance record
+  //   let attendance = await this.prisma.attendance.findFirst({
+  //     where: {
+  //       studentId,
+  //       status: 'CHECKED_IN',
+  //     },
+  //     orderBy: { date: 'desc' },
+  //   });
+
+  //   // If no active record, create a new one (force checkout)
+  //   if (!attendance) {
+  //     const internshipStudent = await this.prisma.internshipStudent.findFirst({
+  //       where: { studentId },
+  //       include: { internship: true },
+  //     });
+
+  //     if (!internshipStudent) {
+  //       throw new NotFoundException('No internship found for this student.');
+  //     }
+
+  //     attendance = await this.prisma.attendance.create({
+  //       data: {
+  //         internshipId: internshipStudent.internshipId,
+  //         studentId,
+  //         date: new Date(),
+  //         checkOut: checkoutTime,
+  //         duration: '0h 0m',
+  //         status: 'CHECKED_OUT',
+  //       },
+  //       include: {
+  //         internship: {
+  //           include: {
+  //             opportunity: true,
+  //             company: true,
+  //           },
+  //         },
+  //       },
+  //     });
+
+  //     return convertBigIntFields(attendance);
+  //   }
+
+  //   // Calculate duration
+  //   const durationMs = checkoutTime.getTime() - attendance.date.getTime();
+  //   const hours = Math.floor(durationMs / (1000 * 60 * 60));
+  //   const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+  //   const durationStr = `${hours}h ${minutes}m`;
+
+  //   // Update existing record
+  //   const updated = await this.prisma.attendance.update({
+  //     where: { id: attendance.id },
+  //     data: {
+  //       checkOut: checkoutTime,
+  //       duration: durationStr,
+  //       status: 'CHECKED_OUT',
+  //     },
+  //     include: {
+  //       internship: {
+  //         include: {
+  //           opportunity: true,
+  //           company: true,
+  //         },
+  //       },
+  //     },
+  //   });
+
+  //   return convertBigIntFields(updated);
+  // }
+
+
+
+  // src/modules/student/student.service.ts
+
+  async checkOut(studentId: number) {
+    const now = new Date();
+
+    const attendance = await this.prisma.attendance.findFirst({
+      where: {
+        studentId,
+        status: 'CHECKED_IN',
+      },
+      orderBy: { date: 'desc' },
+    });
+
+    if (!attendance) {
+      throw new NotFoundException('No active check‑in found for today. Please check in first.');
+    }
+
+    const durationMs = now.getTime() - attendance.date.getTime();
+    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+    const durationStr = `${hours}h ${minutes}m`;
+
+    const updated = await this.prisma.attendance.update({
+      where: { id: attendance.id },
+      data: {
+        checkOut: now,
+        duration: durationStr,
+        status: 'CHECKED_OUT',
+      },
+      include: {
+        internship: {
+          include: {
+            opportunity: true,
+            company: true,
+          },
+        },
+      },
+    });
+
+    return convertBigIntFields(updated);
+  }
 
 
   async getEvaluations(userId: number) {
@@ -793,6 +1438,45 @@ export class StudentService {
 
 
 
+  // async getDashboard(userId: number) {
+  //   const [profile, internships, tasks, attendance, evaluations] = await Promise.all([
+  //     this.getProfile(userId),
+  //     this.getInternships(userId),
+  //     this.getTasks(userId),
+  //     this.getAttendance(userId),
+  //     this.getEvaluations(userId),
+  //     this.getActivityFeed(userId),
+  //   ]);
+
+  //   // Calculate stats
+  //   const stats = {
+  //     totalInternships: internships.length,
+  //     totalTasks: tasks.length,
+  //     totalAttendance: attendance.length,
+  //     totalEvaluations: evaluations.length,
+  //     pendingTasks: tasks.filter(t => t.status === TaskStatus.TODO).length,
+  //     inProgressTasks: tasks.filter(t => t.status === TaskStatus.IN_PROGRESS).length,
+  //     completedTasks: tasks.filter(t => t.status === TaskStatus.DONE).length,
+  //     todayAttendance: attendance.filter(a => {
+  //       const today = new Date();
+  //       return a.date.getDate() === today.getDate() &&
+  //         a.date.getMonth() === today.getMonth() &&
+  //         a.date.getFullYear() === today.getFullYear();
+  //     }).length,
+  //     averageScore: evaluations.reduce((acc, e) => acc + (e.score || 0), 0) / (evaluations.length || 1),
+  //   };
+
+  //   return {
+  //     profile,
+  //     internships,
+  //     tasks,
+  //     attendance,
+  //     evaluations,
+  //     stats,
+  //   };
+  // }
+
+
   async getDashboard(userId: number) {
     const [profile, internships, tasks, attendance, evaluations] = await Promise.all([
       this.getProfile(userId),
@@ -803,7 +1487,6 @@ export class StudentService {
       this.getActivityFeed(userId),
     ]);
 
-    // Calculate stats
     const stats = {
       totalInternships: internships.length,
       totalTasks: tasks.length,
@@ -834,86 +1517,270 @@ export class StudentService {
 
 
   async getInternshipDetails(userId: number, internshipId: number) {
-    // 1. التحقق من أن الطالب مسجل في هذا التدريب
-    const enrolled = await this.prisma.internshipStudent.findFirst({
-      where: {
-        studentId: userId,
-        internshipId,
-      },
-    });
+    const [enrolled, internship] = await Promise.all([
+      this.prisma.internshipStudent.findFirst({ where: { studentId: userId, internshipId } }),
+      this.prisma.internship.findUnique({
+        where: { id: internshipId },
+        select: {
+          id: true,
+          status: true,
+          cohort: true,
+          progressPercent: true,
+          currentMilestone: true,
+          totalMilestones: true,
+          weeksCompleted: true,
+          weeksTotal: true,
+          startDate: true,
+          endDate: true,
+          opportunity: {
+            select: {
+              title: true,
+              description: true,
+              coverImage: true,
+              type: true,
+              location: true,
+              hoursTotal: true,
+              hoursPerWeek: true,
+              workDays: true,
+              dailyHours: true,
+              workStartTime: true,
+              workEndTime: true,
+              attendanceMinPercent: true,
+              checkInStart: true,
+              checkInEnd: true,
+              venueName: true,
+              venueAddress: true,
+              venueEquipment: true,
+              remoteTools: true,
+              latitude: true,
+              longitude: true,
+              techStack: true,
+              learningObjectives: true,
+              competencies: true,
+            },
+          },
+          company: { select: { name: true, logo: true } },
+          trainer: { select: { id: true, firstName: true, lastName: true } },
+        },
+      }),
+    ]);
 
     if (!enrolled) throw new ForbiddenException('You are not enrolled in this internship');
-
-    // 2. جلب تفاصيل التدريب
-    const internship = await this.prisma.internship.findUnique({
-      where: { id: internshipId },
-      include: {
-        opportunity: true,
-        company: true,
-        university: true,
-        trainer: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            profileImage: true,
-          },
-        },
-        supervisor: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            profileImage: true,
-          },
-        },
-        tasks: {
-          include: {
-            submissions: {
-              where: { studentId: userId },
-            },
-          },
-          orderBy: { deadline: 'asc' },
-        },
-        attendance: {
-          where: { studentId: userId },
-          orderBy: { date: 'desc' },
-        },
-        evaluations: {
-          where: { studentId: userId },
-          include: {
-            evaluator: {
-              select: {
-                firstName: true,
-                lastName: true,
-                role: true,
-              },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
-        },
-      },
-    });
-
     if (!internship) throw new NotFoundException('Internship not found');
 
-    // 3. حساب الإحصائيات
-    const totalTasks = internship.tasks.length;
-    const completedTasks = internship.tasks.filter(t => t.status === TaskStatus.DONE).length;
-    const attendanceCount = internship.attendance.length;
-    const presentCount = internship.attendance.filter(a => a.status === AttendanceStatus.CHECKED_IN).length;
+    const [supervisors, academicStudents, tasks, attendance, evaluations, aiEvaluation] = await Promise.all([
+      this.prisma.internshipSupervisor.findMany({
+        where: { internshipId },
+        select: {
+          role: true,
+          supervisor: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              role: true,
+              supervisorProfile: { select: { department: true } },
+            },
+          },
+          university: { select: { name: true, shortCode: true } },
+        },
+      }),
+      this.prisma.internshipStudent.findMany({
+        where: { internshipId },
+        select: { student: { select: { university: { select: { id: true, name: true, shortCode: true } } } } },
+      }),
+      this.prisma.task.findMany({
+        where: { internshipId },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          deadline: true,
+          status: true,
+          badge: true,
+          rubricUrl: true,
+          rubric: true,
+          submissions: {
+            where: { studentId: userId },
+            include: { aiEvaluations: { orderBy: { createdAt: 'desc' }, take: 1 } },
+          },
+        },
+        orderBy: { deadline: 'asc' },
+      }),
+      this.prisma.attendance.findMany({
+        where: { internshipId, studentId: userId },
+        orderBy: { date: 'desc' },
+      }),
+      this.prisma.evaluation.findMany({
+        where: { studentId: userId, internshipId },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          evaluator: { select: { id: true, firstName: true, lastName: true, role: true } },
+        },
+      }),
+      this.prisma.aIEvaluation.findFirst({
+        where: { taskSubmission: { studentId: userId, task: { internshipId } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter(task => task.status === TaskStatus.DONE).length;
+    const inProgressTasks = tasks.filter(task => task.status === TaskStatus.IN_PROGRESS).length;
+    const attendanceCount = attendance.length;
+    const presentCount = attendance.filter(entry =>
+      entry.status === AttendanceStatus.CHECKED_IN ||
+      entry.status === AttendanceStatus.CHECKED_OUT ||
+      entry.status === AttendanceStatus.MARKED_PRESENT,
+    ).length;
+    const absentCount = attendance.filter(entry => entry.status === AttendanceStatus.MARKED_ABSENT).length;
+    const hoursCompleted = attendance.reduce((sum, entry) => {
+      const match = entry.duration?.match(/[\d.]+/);
+      return sum + (match ? Number(match[0]) : 0);
+    }, 0);
+    const hoursTotal = internship.opportunity.hoursTotal ?? 0;
+    const currentTask = tasks[0];
+    const academicPartners = new Map<number, { university: string; shortCode: string; studentCount: number }>();
+
+    for (const entry of academicStudents) {
+      const university = entry.student.university;
+      const partner = academicPartners.get(university.id);
+      if (partner) partner.studentCount += 1;
+      else academicPartners.set(university.id, { university: university.name, shortCode: university.shortCode, studentCount: 1 });
+    }
 
     return {
-      ...internship,
+      id: internship.id,
+      status: internship.status,
+      header: {
+        title: internship.opportunity.title,
+        // subtitle: internship.opportunity.shortPitch,
+        cohort: internship.cohort,
+        coverImage: internship.opportunity.coverImage,
+        trainingType: internship.opportunity.type,
+        location: internship.opportunity.location,
+        company: {
+          name: internship.company.name,
+          logo: internship.company.logo,
+        },
+        trainer: internship.trainer
+          ? {
+            firstName: internship.trainer.firstName,
+            lastName: internship.trainer.lastName,
+          }
+          : null,
+      },
       stats: {
-        totalTasks,
-        completedTasks,
-        progress: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
-        attendanceCount,
-        presentCount,
-        attendanceRate: attendanceCount > 0 ? (presentCount / attendanceCount) * 100 : 0,
+        progress: {
+          percent: hoursTotal > 0
+            ? Math.min(100, Math.round((hoursCompleted / hoursTotal) * 100))
+            : internship.progressPercent,
+          currentMilestone: internship.currentMilestone ?? 0,
+          totalMilestones: internship.totalMilestones ?? 0,
+          weeksCompleted: internship.weeksCompleted ?? 0,
+          weeksTotal: internship.weeksTotal ?? 0,
+          hoursCompleted,
+          hoursTotal: internship.opportunity.hoursTotal ?? 0,
+        },
+        tasks: {
+          total: totalTasks,
+          completed: completedTasks,
+          inProgress: inProgressTasks,
+        },
+        attendance: {
+          ratePercent: attendanceCount > 0 ? Number(((presentCount / attendanceCount) * 100).toFixed(2)) : 0,
+          presentRecords: presentCount,
+          absentRecords: absentCount,
+          totalRecords: attendanceCount,
+        },
+      },
+      about: {
+        description: internship.opportunity.description,
+        techStack: Array.isArray(internship.opportunity.techStack) ? internship.opportunity.techStack : [],
+        learningObjectives: internship.opportunity.learningObjectives ?? [],
+        competencies: Array.isArray(internship.opportunity.competencies) ? internship.opportunity.competencies : [],
+      },
+      overview: {
+        trainingPeriod: {
+          startDate: internship.startDate,
+          endDate: internship.endDate,
+          weeksRemaining: Math.max(
+            0,
+            (internship.weeksTotal ?? 0) - (internship.weeksCompleted ?? 0),
+          ),
+        },
+        totalDuration: {
+          hours: internship.opportunity.hoursTotal,
+          hoursPerWeek: internship.opportunity.hoursPerWeek,
+          workingDays: internship.opportunity.workDays,
+        },
+        trainingVenue: {
+          name: internship.opportunity.venueName,
+          address: internship.opportunity.venueAddress,
+          latitude: internship.opportunity.latitude,
+          longitude: internship.opportunity.longitude,
+          equipment: internship.opportunity.venueEquipment,
+        },
+        academicPartners: Array.from(academicPartners.values()),
+      },
+      currentTask: currentTask
+        ? {
+          id: currentTask.id,
+          title: currentTask.title,
+          description: currentTask.description,
+          status: currentTask.status,
+          badge: currentTask.badge,
+          deadline: currentTask.deadline,
+          rubricUrl: currentTask.rubricUrl,
+          rubric: currentTask.rubric ?? [],
+          submission: currentTask.submissions[0] ?? null,
+        }
+        : null,
+      tasks,
+      attendance,
+      evaluations,
+      lastTaskEvaluation: evaluations[0]
+        ? {
+          id: evaluations[0].id,
+          evaluatorId: evaluations[0].evaluatorId,
+          score: evaluations[0].score,
+          feedback: evaluations[0].feedback,
+          breakdown: evaluations[0].breakdown ?? [],
+          evaluator: evaluations[0].evaluator,
+          createdAt: evaluations[0].createdAt,
+        }
+        : null,
+      aiEvaluation,
+      supervisors: supervisors.map(({ role, supervisor, university }) => ({
+        id: supervisor.id,
+        firstName: supervisor.firstName,
+        lastName: supervisor.lastName,
+        department: supervisor.supervisorProfile?.department,
+        university: university.name,
+        shortCode: university.shortCode,
+        role: role ?? supervisor.role,
+      })),
+      logistics: {
+        attendanceModel: {
+          type: internship.opportunity.type === 'REMOTE' ? 'Remote' : 'On-Site Lab + QR Verification',
+          checkInStart: internship.opportunity.checkInStart,
+          checkInEnd: internship.opportunity.checkInEnd,
+          minPercent: internship.opportunity.attendanceMinPercent,
+        },
+        workingSchedule: {
+          days: internship.opportunity.workDays,
+          startTime: internship.opportunity.workStartTime,
+          endTime: internship.opportunity.workEndTime,
+          dailyHours: internship.opportunity.dailyHours,
+        },
+        venue: {
+          name: internship.opportunity.venueName,
+          address: internship.opportunity.venueAddress,
+          latitude: internship.opportunity.latitude,
+          longitude: internship.opportunity.longitude,
+          equipment: internship.opportunity.venueEquipment,
+          remoteTools: internship.opportunity.remoteTools,
+        },
       },
     };
   }
@@ -949,7 +1816,6 @@ export class StudentService {
     });
 
 
-    // 2. جلب التقييمات الجديدة
     const evaluations = await this.prisma.evaluation.findMany({
       where: { studentId: userId },
       orderBy: { createdAt: 'desc' },
